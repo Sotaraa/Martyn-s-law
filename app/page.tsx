@@ -303,7 +303,7 @@ function PdfField({ label, value }: { label: string; value: string }) {
 function PdfBadge({ level }: { level: string }) {
   const bg = level === "MUST" ? "#e05a2b" : level === "SHOULD" ? "#4a7fb5" : "#9ca3af";
   return (
-    <span style={{ background: bg, color: "white", fontSize: "8px", fontWeight: "bold", padding: "1px 6px", borderRadius: "3px", marginRight: "6px" }}>
+    <span style={{ display: "inline-block", background: bg, color: "white", fontSize: "10px", fontWeight: "700", padding: "2px 8px", borderRadius: "4px", marginRight: "8px", letterSpacing: "0.04em", lineHeight: "1.4" }}>
       {level}
     </span>
   );
