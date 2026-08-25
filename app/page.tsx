@@ -394,9 +394,9 @@ export default function Home() {
   const tasksOnPage4a = TASKS.filter((t) =>
     (t.category === "PROCEDURES" && ["multi_channel", "send_plans"].includes(t.id)) ||
     t.category === "TRAINING" ||
-    t.category === "REVIEW" && t.id !== "board_signoff"
+    (t.category === "REVIEW" && t.id === "risk_assessment")
   );
-  const tasksOnPage5 = TASKS.filter((t) => t.id === "board_signoff");
+  const tasksOnPage5 = TASKS.filter((t) => ["next_review", "board_signoff"].includes(t.id));
 
   return (
     <>
@@ -621,7 +621,7 @@ export default function Home() {
 
     {/* ── PDF layout (shown only during print) ── */}
     <div id="pdf-layout" style={{ position: "absolute", left: "-9999px", top: 0, width: "794px" }}>
-      <div ref={printRef} style={{ width: "794px", fontFamily: "-apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif" }}>
+      <div ref={printRef} style={{ width: "794px", fontFamily: "Arial, Helvetica, sans-serif" }}>
 
           {/* PDF Page 1 — Cover */}
           <div style={{ position: "relative", width: "794px", height: "1123px", overflow: "hidden", background: "white" }}>
