@@ -293,9 +293,9 @@ function PrintPage({
 
 function PdfField({ label, value }: { label: string; value: string }) {
   return (
-    <div style={{ marginBottom: "8px" }}>
-      <div style={{ fontSize: "9px", fontWeight: "600", letterSpacing: "0.08em", color: "#9ca3af", textTransform: "uppercase", marginBottom: "2px" }}>{label}</div>
-      <div style={{ borderBottom: "1.5px solid #d1d5db", background: "#fef4f1", minHeight: "24px", padding: "3px 6px", fontSize: "12px", color: "#1f2937" }}>{value}</div>
+    <div style={{ marginBottom: "10px" }}>
+      <div style={{ fontSize: "9px", fontWeight: "600", letterSpacing: "0.07em", color: "#6b7280", textTransform: "uppercase", marginBottom: "4px" }}>{label}</div>
+      <div style={{ border: "1.5px solid #d1d5db", borderRadius: "6px", background: "#ffffff", minHeight: "28px", padding: "4px 10px", fontSize: "12px", color: "#111827" }}>{value}</div>
     </div>
   );
 }
@@ -701,7 +701,7 @@ export default function Home() {
               </div>
 
               <h3 style={{ fontWeight: "bold", fontSize: "15px", color: "#111827", borderBottom: "1px solid #e5e7eb", paddingBottom: "6px", marginBottom: "10px", marginTop: "24px" }}>Notes</h3>
-              <div style={{ minHeight: "80px", background: "#fef4f1", borderBottom: "1.5px solid #d1d5db", padding: "8px", fontSize: "12px", color: "#1f2937" }}>{form.siaaNotes}</div>
+              <div style={{ minHeight: "80px", border: "1.5px solid #d1d5db", borderRadius: "6px", background: "#ffffff", padding: "8px 10px", fontSize: "12px", color: "#111827" }}>{form.siaaNotes}</div>
             </div>
             <div style={{ position: "absolute", bottom: "12px", left: "32px", right: "32px", borderTop: "1px solid #e5e7eb", paddingTop: "6px", display: "flex", justifyContent: "space-between" }}>
               <span style={{ fontSize: "9px", color: "#9ca3af" }}>Martyn's Law Standard Tier Compliance Checklist · Powered by Sotara</span>
@@ -820,7 +820,7 @@ export default function Home() {
               {form.drills.map((drill, i) => (
                 <div key={i} style={{ display: "grid", gridTemplateColumns: "100px 120px 150px 1fr", gap: "8px", marginBottom: "8px" }}>
                   {[drill.date, drill.type, drill.loggedBy, drill.notes].map((v, j) => (
-                    <div key={j} style={{ background: "#fef4f1", borderBottom: "1.5px solid #d1d5db", minHeight: "22px", padding: "2px 6px", fontSize: "11px", color: "#1f2937" }}>{v}</div>
+                    <div key={j} style={{ border: "1.5px solid #d1d5db", borderRadius: "4px", background: "#ffffff", minHeight: "24px", padding: "2px 8px", fontSize: "11px", color: "#111827" }}>{v}</div>
                   ))}
                 </div>
               ))}
@@ -856,7 +856,7 @@ export default function Home() {
               </div>
               <div style={{ marginTop: "8px" }}>
                 <div style={{ fontSize: "9px", fontWeight: "600", letterSpacing: "0.08em", color: "#9ca3af", textTransform: "uppercase", marginBottom: "2px" }}>Notes (Minute Reference, Decisions Made, Outstanding Actions)</div>
-                <div style={{ borderBottom: "1.5px solid #d1d5db", background: "#fef4f1", minHeight: "80px", padding: "6px", fontSize: "12px", color: "#1f2937", whiteSpace: "pre-wrap" }}>{form.govNotes}</div>
+                <div style={{ minHeight: "80px", border: "1.5px solid #d1d5db", borderRadius: "6px", background: "#ffffff", padding: "6px 10px", fontSize: "12px", color: "#111827", whiteSpace: "pre-wrap" }}>{form.govNotes}</div>
               </div>
 
               <h3 style={{ fontWeight: "bold", fontSize: "15px", color: "#111827", borderBottom: "1px solid #e5e7eb", paddingBottom: "6px", marginBottom: "14px", marginTop: "24px" }}>Sign-off Record</h3>
