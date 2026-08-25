@@ -266,7 +266,7 @@ function PrintPage({
   title: string; subtitle: string; pageNum: number; children: React.ReactNode;
 }) {
   return (
-    <div className="pdf-page bg-white" style={{ width: "794px", minHeight: "1123px", padding: "0", marginBottom: "0", breakAfter: "page", pageBreakAfter: "always" }}>
+    <div className="pdf-page bg-white" style={{ position: "relative", width: "794px", height: "1123px", overflow: "hidden", padding: "0", marginBottom: "0" }}>
       {/* Header */}
       <div style={{ background: "#162040", color: "white", padding: "24px 32px", display: "flex", justifyContent: "space-between", alignItems: "flex-start" }}>
         <div>
@@ -358,12 +358,30 @@ export default function Home() {
   const removeDrillRow = (i: number) =>
     setForm((f) => ({ ...f, drills: f.drills.filter((_, idx) => idx !== i) }));
 
-  const handleDownload = () => {
-    const name = form.schoolName.replace(/\s+/g, "-") || "school";
-    const prev = document.title;
-    document.title = `martyns-law-checklist-${name}`;
-    window.print();
-    document.title = prev;
+  const handleDownload = async () => {
+    setGenerating(true);
+    try {
+      const el = printRef.current;
+      if (!el) return;
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      const { default: html2canvas } = await import("html2canvas" as any);
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      const { default: jsPDF } = await import("jspdf" as any);
+      const pdf = new jsPDF({ unit: "px", format: [794, 1123], orientation: "portrait" });
+      const pages = Array.from(el.children) as HTMLElement[];
+      for (let i = 0; i < pages.length; i++) {
+        if (i > 0) pdf.addPage([794, 1123]);
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        const canvas = await (html2canvas as any)(pages[i], {
+          scale: 2, useCORS: true, width: 794, height: 1123, logging: false,
+        });
+        pdf.addImage(canvas.toDataURL("image/jpeg", 0.95), "JPEG", 0, 0, 794, 1123);
+      }
+      const name = form.schoolName.replace(/\s+/g, "-") || "school";
+      pdf.save(`martyns-law-checklist-${name}.pdf`);
+    } finally {
+      setGenerating(false);
+    }
   };
 
   // Group tasks by category for display
@@ -602,11 +620,11 @@ export default function Home() {
     </div>
 
     {/* ── PDF layout (shown only during print) ── */}
-    <div id="pdf-layout" style={{ display: "none" }}>
+    <div id="pdf-layout" style={{ position: "absolute", left: "-9999px", top: 0, width: "794px" }}>
       <div ref={printRef} style={{ width: "794px", fontFamily: "-apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif" }}>
 
           {/* PDF Page 1 — Cover */}
-          <div style={{ position: "relative", width: "794px", minHeight: "1123px", background: "white", pageBreakAfter: "always" }}>
+          <div style={{ position: "relative", width: "794px", height: "1123px", overflow: "hidden", background: "white" }}>
             <div style={{ background: "#162040", color: "white", padding: "24px 32px", display: "flex", justifyContent: "space-between" }}>
               <div>
                 <div style={{ fontSize: "22px", fontWeight: "bold" }}>Martyn's Law Compliance Checklist</div>
@@ -648,7 +666,7 @@ export default function Home() {
           </div>
 
           {/* PDF Page 2 — Responsible Person & SIA */}
-          <div style={{ position: "relative", width: "794px", minHeight: "1123px", background: "white", pageBreakAfter: "always" }}>
+          <div style={{ position: "relative", width: "794px", height: "1123px", overflow: "hidden", background: "white" }}>
             <div style={{ background: "#162040", color: "white", padding: "24px 32px", display: "flex", justifyContent: "space-between" }}>
               <div>
                 <div style={{ fontSize: "22px", fontWeight: "bold" }}>Responsible Person &amp; SIA</div>
@@ -692,7 +710,7 @@ export default function Home() {
           </div>
 
           {/* PDF Page 3 — Compliance Tasks (part 1) */}
-          <div style={{ position: "relative", width: "794px", minHeight: "1123px", background: "white", pageBreakAfter: "always" }}>
+          <div style={{ position: "relative", width: "794px", height: "1123px", overflow: "hidden", background: "white" }}>
             <div style={{ background: "#162040", color: "white", padding: "24px 32px", display: "flex", justifyContent: "space-between" }}>
               <div>
                 <div style={{ fontSize: "22px", fontWeight: "bold" }}>Compliance Tasks</div>
@@ -722,7 +740,7 @@ export default function Home() {
           </div>
 
           {/* PDF Page 4 — Compliance Tasks (part 2) */}
-          <div style={{ position: "relative", width: "794px", minHeight: "1123px", background: "white", pageBreakAfter: "always" }}>
+          <div style={{ position: "relative", width: "794px", height: "1123px", overflow: "hidden", background: "white" }}>
             <div style={{ background: "#162040", color: "white", padding: "24px 32px", display: "flex", justifyContent: "space-between" }}>
               <div>
                 <div style={{ fontSize: "22px", fontWeight: "bold" }}>Compliance Tasks (cont.)</div>
@@ -755,7 +773,7 @@ export default function Home() {
           </div>
 
           {/* PDF Page 5 — Compliance Tasks (cont.) board sign-off */}
-          <div style={{ position: "relative", width: "794px", minHeight: "1123px", background: "white", pageBreakAfter: "always" }}>
+          <div style={{ position: "relative", width: "794px", height: "1123px", overflow: "hidden", background: "white" }}>
             <div style={{ background: "#162040", color: "white", padding: "24px 32px", display: "flex", justifyContent: "space-between" }}>
               <div>
                 <div style={{ fontSize: "22px", fontWeight: "bold" }}>Compliance Tasks (cont.)</div>
@@ -780,7 +798,7 @@ export default function Home() {
           </div>
 
           {/* PDF Page 6 — Drill Log */}
-          <div style={{ position: "relative", width: "794px", minHeight: "1123px", background: "white", pageBreakAfter: "always" }}>
+          <div style={{ position: "relative", width: "794px", height: "1123px", overflow: "hidden", background: "white" }}>
             <div style={{ background: "#162040", color: "white", padding: "24px 32px", display: "flex", justifyContent: "space-between" }}>
               <div>
                 <div style={{ fontSize: "22px", fontWeight: "bold" }}>Drill Log</div>
@@ -815,7 +833,7 @@ export default function Home() {
           </div>
 
           {/* PDF Page 7 — Governance & Sign-off */}
-          <div style={{ position: "relative", width: "794px", minHeight: "1123px", background: "white" }}>
+          <div style={{ position: "relative", width: "794px", height: "1123px", overflow: "hidden", background: "white" }}>
             <div style={{ background: "#162040", color: "white", padding: "24px 32px", display: "flex", justifyContent: "space-between" }}>
               <div>
                 <div style={{ fontSize: "22px", fontWeight: "bold" }}>Governance &amp; Sign-off</div>
