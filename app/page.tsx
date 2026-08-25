@@ -456,7 +456,7 @@ export default function Home() {
               </div>
             </div>
             <div className="bg-gray-50 rounded p-4 text-xs text-gray-600 border border-gray-200">
-              <strong>What this covers:</strong> Early years, primary, secondary and further education settings sit in the Standard Tier regardless of pupil numbers. This checklist reflects common Standard Tier guidance — verify wording against the official Section 27 statutory guidance and take your own legal advice before relying on it as a formal compliance record.
+              <strong>What this covers:</strong> Early years, primary, secondary and further education settings sit in the Standard Tier regardless of pupil numbers. This checklist reflects common Standard Tier guidance. Verify wording against the official Section 27 statutory guidance and take your own legal advice before relying on it as a formal compliance record.
             </div>
           </div>
         </div>
@@ -570,7 +570,7 @@ export default function Home() {
           <SectionHeader title="Governance & Sign-off" subtitle="STANDARD TIER · SECTION 4 OF 4" />
           <div className="p-8 space-y-6">
             <p className="text-xs text-gray-500">
-              The governing body or trust board is legally responsible for Standard Tier compliance — record
+              The governing body or trust board is legally responsible for Standard Tier compliance. Record
               formal review here once it has been minuted, rather than leaving it informal.
             </p>
 
@@ -605,7 +605,7 @@ export default function Home() {
           >
             {generating ? "Generating PDF…" : "Download as PDF"}
           </button>
-          <p className="text-xs text-gray-400 mt-3">Your data stays in your browser — nothing is uploaded or stored.</p>
+          <p className="text-xs text-gray-400 mt-3">Your data stays in your browser. Nothing is uploaded or stored.</p>
         </div>
 
       </div>
@@ -647,7 +647,7 @@ export default function Home() {
 
               <div style={{ marginTop: "32px", border: "1px solid #e5e7eb", borderRadius: "6px", padding: "14px 16px", background: "#f9fafb" }}>
                 <div style={{ fontWeight: "600", fontSize: "11px", marginBottom: "4px" }}>What this covers</div>
-                <p style={{ fontSize: "11px", color: "#6b7280", lineHeight: "1.5" }}>Early years, primary, secondary and further education settings sit in the Standard Tier regardless of pupil numbers. This checklist reflects common Standard Tier guidance — verify wording against the official Section 27 statutory guidance and take your own legal advice before relying on it as a formal compliance record.</p>
+                <p style={{ fontSize: "11px", color: "#6b7280", lineHeight: "1.5" }}>Early years, primary, secondary and further education settings sit in the Standard Tier regardless of pupil numbers. This checklist reflects common Standard Tier guidance. Verify wording against the official Section 27 statutory guidance and take your own legal advice before relying on it as a formal compliance record.</p>
               </div>
             </div>
             <div style={{ position: "absolute", bottom: "12px", left: "32px", right: "32px", borderTop: "1px solid #e5e7eb", paddingTop: "6px", display: "flex", justifyContent: "space-between" }}>
@@ -837,7 +837,7 @@ export default function Home() {
             </div>
             <div style={{ height: "3px", background: "linear-gradient(to right, #3b82f6, #1d4ed8)" }} />
             <div style={{ padding: "24px 32px" }}>
-              <p style={{ fontSize: "11px", color: "#6b7280", marginBottom: "20px" }}>The governing body or trust board is legally responsible for Standard Tier compliance — record formal review here once it has been minuted, rather than leaving it informal.</p>
+              <p style={{ fontSize: "11px", color: "#6b7280", marginBottom: "20px" }}>The governing body or trust board is legally responsible for Standard Tier compliance. Record formal review here once it has been minuted, rather than leaving it informal.</p>
 
               <h3 style={{ fontWeight: "bold", fontSize: "15px", color: "#111827", borderBottom: "1px solid #e5e7eb", paddingBottom: "6px", marginBottom: "14px" }}>Latest Sign-off</h3>
               <PdfField label="Reviewed / Approved By" value={form.reviewedBy} />
@@ -860,7 +860,7 @@ export default function Home() {
               <div style={{ marginTop: "40px", border: "1px solid #e5e7eb", borderRadius: "6px", padding: "16px 20px", display: "flex", gap: "16px", alignItems: "flex-start" }}>
                 <div>
                   <div style={{ fontWeight: "bold", fontSize: "13px", color: "#162040", marginBottom: "4px" }}>More than a checklist?</div>
-                  <p style={{ fontSize: "11px", color: "#6b7280", marginBottom: "6px" }}>Sotara builds operations software for UK schools — leave management, helpdesk, visitor sign-in and more.</p>
+                  <p style={{ fontSize: "11px", color: "#6b7280", marginBottom: "6px" }}>Sotara builds operations software for UK schools: leave management, helpdesk, visitor sign-in and more.</p>
                   <span style={{ fontSize: "11px", color: "#162040", fontWeight: "600" }}>Scan to explore → sotara.co.uk</span>
                 </div>
               </div>
