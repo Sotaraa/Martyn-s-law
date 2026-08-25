@@ -115,3 +115,82 @@ body {
   background-color: #f5f6fa;
   font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
 }
+
+/* ── Sotara loading screen ── */
+#sotara-loader {
+  position: fixed;
+  inset: 0;
+  z-index: 2147483000;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 26px;
+  background: #f4f5fb;
+  transition: opacity 0.5s ease, visibility 0.5s ease;
+}
+#sotara-loader.is-done {
+  opacity: 0;
+  visibility: hidden;
+}
+.sotara-mark {
+  width: 230px;
+  max-width: 70vw;
+  height: auto;
+  overflow: visible;
+}
+#sotara-loader .edge {
+  fill: none;
+  stroke: #4a5cd6;
+  stroke-width: 4;
+  stroke-linecap: round;
+  stroke-dasharray: 1;
+  stroke-dashoffset: 1;
+  animation: sotara-draw 0.45s ease forwards;
+}
+#sotara-loader .e1 { animation-delay: 0.05s }
+#sotara-loader .e2 { animation-delay: 0.20s }
+#sotara-loader .e3 { animation-delay: 0.35s }
+#sotara-loader .e4 { animation-delay: 0.50s }
+#sotara-loader .node {
+  transform-box: fill-box;
+  transform-origin: center;
+  transform: scale(0);
+  animation: sotara-pop 0.38s cubic-bezier(0.34, 1.56, 0.64, 1) forwards;
+}
+#sotara-loader .n1 { animation-delay: 0.55s }
+#sotara-loader .n2 { animation-delay: 0.70s }
+#sotara-loader .n3 { animation-delay: 0.85s }
+#sotara-loader .n4 { animation-delay: 1.0s }
+#sotara-loader .wordmark {
+  opacity: 0;
+  transform: translateX(-8px);
+  animation: sotara-word 0.5s ease forwards;
+  animation-delay: 1.05s;
+}
+.sotara-bar {
+  width: 120px;
+  height: 3px;
+  border-radius: 99px;
+  overflow: hidden;
+  background: rgba(30, 42, 107, 0.14);
+}
+.sotara-bar > span {
+  display: block;
+  height: 100%;
+  border-radius: 99px;
+  background: #3b4fd4;
+  transform-origin: left;
+  transform: scaleX(0);
+  animation: sotara-bar 1.3s ease forwards 0.1s;
+}
+@keyframes sotara-draw { to { stroke-dashoffset: 0 } }
+@keyframes sotara-pop  { 0% { transform: scale(0) } 70% { transform: scale(1.12) } 100% { transform: scale(1) } }
+@keyframes sotara-word { to { opacity: 1; transform: none } }
+@keyframes sotara-bar  { to { transform: scaleX(1) } }
+@media (prefers-reduced-motion: reduce) {
+  #sotara-loader .edge    { stroke-dashoffset: 0; animation: none }
+  #sotara-loader .node    { transform: none; animation: none }
+  #sotara-loader .wordmark{ opacity: 1; transform: none; animation: none }
+  .sotara-bar > span      { transform: scaleX(1); animation: none }
+}

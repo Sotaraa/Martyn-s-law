@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
 import "./globals.css";
+import SotaraLoader from "./components/SotaraLoader";
 
 export const metadata: Metadata = {
   title: "Martyn's Law Compliance Checklist | Sotara",
@@ -9,7 +10,10 @@ export const metadata: Metadata = {
 export default function RootLayout({ children }: { children: React.ReactNode }) {
   return (
     <html lang="en">
-      <body>{children}</body>
+      <body>
+        <SotaraLoader />
+        {children}
+      </body>
     </html>
   );
 }
