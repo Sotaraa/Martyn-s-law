@@ -194,3 +194,24 @@ body {
   #sotara-loader .wordmark{ opacity: 1; transform: none; animation: none }
   .sotara-bar > span      { transform: scaleX(1); animation: none }
 }
+
+/* ── Print / PDF styles ── */
+@media print {
+  #no-print { display: none !important; }
+  #sotara-loader { display: none !important; }
+  #pdf-layout {
+    display: block !important;
+    position: static !important;
+    margin: 0;
+    padding: 0;
+  }
+  body {
+    background: white !important;
+    margin: 0 !important;
+    padding: 0 !important;
+  }
+  @page {
+    size: A4 portrait;
+    margin: 0;
+  }
+}

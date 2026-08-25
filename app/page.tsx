@@ -358,24 +358,12 @@ export default function Home() {
   const removeDrillRow = (i: number) =>
     setForm((f) => ({ ...f, drills: f.drills.filter((_, idx) => idx !== i) }));
 
-  const handleDownload = async () => {
-    setGenerating(true);
-    const el = printRef.current;
-    if (!el) return;
-    // Dynamically import html2pdf to avoid SSR issues
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    const html2pdf = (await import("html2pdf.js" as any)).default;
-    html2pdf()
-      .set({
-        margin: 0,
-        filename: `martyns-law-checklist-${form.schoolName.replace(/\s+/g, "-") || "school"}.pdf`,
-        image: { type: "jpeg", quality: 0.98 },
-        html2canvas: { scale: 2, useCORS: true },
-        jsPDF: { unit: "px", format: [794, 1123], orientation: "portrait" },
-      })
-      .from(el)
-      .save()
-      .then(() => setGenerating(false));
+  const handleDownload = () => {
+    const name = form.schoolName.replace(/\s+/g, "-") || "school";
+    const prev = document.title;
+    document.title = `martyns-law-checklist-${name}`;
+    window.print();
+    document.title = prev;
   };
 
   // Group tasks by category for display
@@ -393,7 +381,8 @@ export default function Home() {
   const tasksOnPage5 = TASKS.filter((t) => t.id === "board_signoff");
 
   return (
-    <div className="min-h-screen">
+    <>
+    <div id="no-print" className="min-h-screen">
       {/* ── Top nav ── */}
       <nav className="bg-[#162040] text-white px-6 py-4 flex items-center justify-between sticky top-0 z-50 shadow-lg">
         <div className="flex items-center gap-3">
@@ -610,9 +599,11 @@ export default function Home() {
 
       </div>
 
-      {/* ── Hidden PDF layout ── */}
-      <div style={{ position: "absolute", left: "-9999px", top: 0, width: "794px" }}>
-        <div ref={printRef} style={{ width: "794px", fontFamily: "-apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif" }}>
+    </div>
+
+    {/* ── PDF layout (shown only during print) ── */}
+    <div id="pdf-layout" style={{ display: "none" }}>
+      <div ref={printRef} style={{ width: "794px", fontFamily: "-apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif" }}>
 
           {/* PDF Page 1 — Cover */}
           <div style={{ position: "relative", width: "794px", minHeight: "1123px", background: "white", pageBreakAfter: "always" }}>
@@ -872,8 +863,8 @@ export default function Home() {
           </div>
 
         </div>
-      </div>
-
     </div>
+
+    </>
   );
 }
