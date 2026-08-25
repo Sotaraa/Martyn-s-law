@@ -1,69 +1,826 @@
-import Image from "next/image";
+"use client";
+
+import { useState, useRef } from "react";
+
+// ─── Types ───────────────────────────────────────────────────────────────────
+
+interface DrillRow {
+  date: string;
+  type: string;
+  loggedBy: string;
+  notes: string;
+}
+
+interface FormData {
+  // Cover
+  schoolName: string;
+  siteName: string;
+  peakNumber: string;
+  numberOfSites: string;
+  completedBy: string;
+  dateCompleted: string;
+
+  // Responsible Person & SIA
+  rpName: string;
+  rpRole: string;
+  rpEmail: string;
+  rpAppointedOn: string;
+  siaRegistered: boolean;
+  siaRegistrationDate: string;
+  siaaNotes: string;
+
+  // Compliance Tasks — each has { checked, completedBy, date }
+  tasks: Record<string, { checked: boolean; completedBy: string; date: string }>;
+
+  // Drill Log
+  drills: DrillRow[];
+
+  // Governance & Sign-off
+  reviewedBy: string;
+  reviewDate: string;
+  nextReviewDue: string;
+  govNotes: string;
+  signedBy: string;
+  dateSigned: string;
+}
+
+const TASKS = [
+  { id: "appoint_rp",        label: "Appoint a Responsible Person",                         level: "MUST",   category: "GOVERNANCE" },
+  { id: "register_sia",      label: "Register premises with the SIA",                        level: "MUST",   category: "REGISTRATION" },
+  { id: "evacuation",        label: "Document an evacuation procedure",                      level: "MUST",   category: "PROCEDURES" },
+  { id: "invacuation",       label: "Document an invacuation procedure",                     level: "MUST",   category: "PROCEDURES" },
+  { id: "lockdown",          label: "Document a lockdown procedure",                         level: "MUST",   category: "PROCEDURES" },
+  { id: "communication",     label: "Document a communication procedure",                    level: "MUST",   category: "PROCEDURES" },
+  { id: "safe_space",        label: "Identify designated safe / refuge space(s)",             level: "SHOULD", category: "PROCEDURES" },
+  { id: "multi_channel",     label: "Set up multi-channel staff alerting (not email-only)",  level: "SHOULD", category: "PROCEDURES" },
+  { id: "send_plans",        label: "Adapt plans for SEND & vulnerable pupils",              level: "SHOULD", category: "PROCEDURES" },
+  { id: "training",          label: "Deliver staff terrorism-awareness training",             level: "MUST",   category: "TRAINING" },
+  { id: "drills",            label: "Schedule termly drills",                                level: "SHOULD", category: "TRAINING" },
+  { id: "induction",         label: "Include lockdown procedures in new-staff induction",    level: "SHOULD", category: "TRAINING" },
+  { id: "risk_assessment",   label: "Review and update the risk assessment",                 level: "MUST",   category: "REVIEW" },
+  { id: "next_review",       label: "Set next formal review date",                           level: "SHOULD", category: "REVIEW" },
+  { id: "board_signoff",     label: "Governing body / trust board sign-off recorded",        level: "SHOULD", category: "REVIEW" },
+];
+
+const DRILL_TYPES = ["Evacuation", "Invacuation", "Lockdown", "Communication"];
+
+const EMPTY_DRILL: DrillRow = { date: "", type: "", loggedBy: "", notes: "" };
+
+const defaultTasks = Object.fromEntries(
+  TASKS.map((t) => [t.id, { checked: false, completedBy: "", date: "" }])
+);
+
+const defaultForm: FormData = {
+  schoolName: "", siteName: "", peakNumber: "", numberOfSites: "",
+  completedBy: "", dateCompleted: "",
+  rpName: "", rpRole: "", rpEmail: "", rpAppointedOn: "",
+  siaRegistered: false, siaRegistrationDate: "", siaaNotes: "",
+  tasks: defaultTasks,
+  drills: [{ ...EMPTY_DRILL }, { ...EMPTY_DRILL }, { ...EMPTY_DRILL }],
+  reviewedBy: "", reviewDate: "", nextReviewDue: "", govNotes: "",
+  signedBy: "", dateSigned: "",
+};
+
+// ─── Badge ───────────────────────────────────────────────────────────────────
+
+function Badge({ level }: { level: string }) {
+  const style =
+    level === "MUST"
+      ? "bg-[#e05a2b] text-white"
+      : level === "SHOULD"
+      ? "bg-[#4a7fb5] text-white"
+      : "bg-gray-300 text-gray-700";
+  return (
+    <span className={`inline-block text-[9px] font-bold px-2 py-0.5 rounded ${style} mr-2`}>
+      {level}
+    </span>
+  );
+}
+
+// ─── Section header ───────────────────────────────────────────────────────────
+
+function SectionHeader({ title, subtitle }: { title: string; subtitle?: string }) {
+  return (
+    <div className="bg-[#162040] text-white px-8 py-5 flex items-start justify-between">
+      <div>
+        <h2 className="text-2xl font-bold">{title}</h2>
+        {subtitle && <p className="text-xs text-blue-200 mt-0.5 tracking-wide">{subtitle}</p>}
+      </div>
+      <div className="text-right">
+        <p className="text-xs font-bold tracking-widest text-blue-200">SOTARA</p>
+      </div>
+    </div>
+  );
+}
+
+// ─── Field helpers ────────────────────────────────────────────────────────────
+
+function Field({
+  label, value, onChange, type = "text", className = "",
+}: {
+  label: string; value: string; onChange: (v: string) => void; type?: string; className?: string;
+}) {
+  return (
+    <div className={className}>
+      <label className="field-label">{label}</label>
+      <input
+        type={type}
+        value={value}
+        onChange={(e) => onChange(e.target.value)}
+        className="field-input"
+      />
+    </div>
+  );
+}
+
+function TextArea({
+  label, value, onChange, rows = 4,
+}: {
+  label: string; value: string; onChange: (v: string) => void; rows?: number;
+}) {
+  return (
+    <div>
+      <label className="field-label">{label}</label>
+      <textarea
+        value={value}
+        onChange={(e) => onChange(e.target.value)}
+        rows={rows}
+        className="field-input resize-none"
+      />
+    </div>
+  );
+}
+
+// ─── Task item ────────────────────────────────────────────────────────────────
+
+function TaskItem({
+  task,
+  value,
+  onChange,
+}: {
+  task: (typeof TASKS)[number];
+  value: { checked: boolean; completedBy: string; date: string };
+  onChange: (v: { checked: boolean; completedBy: string; date: string }) => void;
+}) {
+  return (
+    <div className="border-b border-gray-100 py-4">
+      <div className="flex items-start gap-3 mb-3">
+        <button
+          type="button"
+          onClick={() => onChange({ ...value, checked: !value.checked })}
+          className={`mt-0.5 w-5 h-5 flex-shrink-0 border-2 rounded transition-colors ${
+            value.checked ? "bg-[#162040] border-[#162040]" : "border-gray-400 bg-white"
+          }`}
+        >
+          {value.checked && (
+            <svg className="w-full h-full p-0.5 text-white" viewBox="0 0 12 12" fill="none">
+              <path d="M2 6l3 3 5-5" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
+            </svg>
+          )}
+        </button>
+        <div>
+          <span className="text-sm font-medium text-gray-800">{task.label}</span>
+          <div className="mt-1">
+            <Badge level={task.level} />
+            <span className="text-[10px] text-gray-400 tracking-wide">{task.category}</span>
+          </div>
+        </div>
+      </div>
+      <div className="grid grid-cols-2 gap-4 ml-8">
+        <Field
+          label="Completed By"
+          value={value.completedBy}
+          onChange={(v) => onChange({ ...value, completedBy: v })}
+        />
+        <Field
+          label="Date"
+          value={value.date}
+          onChange={(v) => onChange({ ...value, date: v })}
+          type="date"
+        />
+      </div>
+    </div>
+  );
+}
+
+// ─── Print-ready PDF layout ───────────────────────────────────────────────────
+
+function PrintPage({
+  title, subtitle, pageNum, children,
+}: {
+  title: string; subtitle: string; pageNum: number; children: React.ReactNode;
+}) {
+  return (
+    <div className="pdf-page bg-white" style={{ width: "794px", minHeight: "1123px", padding: "0", marginBottom: "0", breakAfter: "page", pageBreakAfter: "always" }}>
+      {/* Header */}
+      <div style={{ background: "#162040", color: "white", padding: "24px 32px", display: "flex", justifyContent: "space-between", alignItems: "flex-start" }}>
+        <div>
+          <div style={{ fontSize: "22px", fontWeight: "bold", marginBottom: "2px" }}>{title}</div>
+          <div style={{ fontSize: "10px", color: "#93c5fd", letterSpacing: "0.05em" }}>{subtitle}</div>
+        </div>
+        <div style={{ textAlign: "right" }}>
+          <div style={{ fontSize: "11px", fontWeight: "bold", color: "#93c5fd", letterSpacing: "0.1em" }}>SOTARA</div>
+          <div style={{ fontSize: "9px", color: "#93c5fd", letterSpacing: "0.1em" }}>PAGE {pageNum}</div>
+        </div>
+      </div>
+      {/* Blue accent line */}
+      <div style={{ height: "3px", background: "linear-gradient(to right, #3b82f6, #1d4ed8)" }} />
+      {/* Content */}
+      <div style={{ padding: "28px 32px" }}>{children}</div>
+      {/* Footer */}
+      <div style={{ position: "absolute", bottom: "12px", left: "32px", right: "32px", borderTop: "1px solid #e5e7eb", paddingTop: "6px", display: "flex", justifyContent: "space-between" }}>
+        <span style={{ fontSize: "9px", color: "#9ca3af" }}>Martyn's Law Standard Tier Compliance Checklist · Powered by Sotara</span>
+        <span style={{ fontSize: "9px", color: "#9ca3af" }}>Page {pageNum}</span>
+      </div>
+    </div>
+  );
+}
+
+function PdfField({ label, value }: { label: string; value: string }) {
+  return (
+    <div style={{ marginBottom: "8px" }}>
+      <div style={{ fontSize: "9px", fontWeight: "600", letterSpacing: "0.08em", color: "#9ca3af", textTransform: "uppercase", marginBottom: "2px" }}>{label}</div>
+      <div style={{ borderBottom: "1.5px solid #d1d5db", background: "#fef4f1", minHeight: "24px", padding: "3px 6px", fontSize: "12px", color: "#1f2937" }}>{value}</div>
+    </div>
+  );
+}
+
+function PdfBadge({ level }: { level: string }) {
+  const bg = level === "MUST" ? "#e05a2b" : level === "SHOULD" ? "#4a7fb5" : "#9ca3af";
+  return (
+    <span style={{ background: bg, color: "white", fontSize: "8px", fontWeight: "bold", padding: "1px 6px", borderRadius: "3px", marginRight: "6px" }}>
+      {level}
+    </span>
+  );
+}
+
+function PdfTaskItem({ task, value }: { task: (typeof TASKS)[number]; value: { checked: boolean; completedBy: string; date: string } }) {
+  return (
+    <div style={{ borderBottom: "1px solid #f3f4f6", paddingTop: "10px", paddingBottom: "10px" }}>
+      <div style={{ display: "flex", alignItems: "flex-start", gap: "10px", marginBottom: "6px" }}>
+        <div style={{ width: "14px", height: "14px", border: "1.5px solid", borderColor: value.checked ? "#162040" : "#9ca3af", background: value.checked ? "#162040" : "white", flexShrink: 0, marginTop: "2px", display: "flex", alignItems: "center", justifyContent: "center" }}>
+          {value.checked && <span style={{ color: "white", fontSize: "10px", lineHeight: 1 }}>✓</span>}
+        </div>
+        <div>
+          <span style={{ fontSize: "12px", fontWeight: "500", color: "#111827" }}>{task.label}</span>
+          <div style={{ marginTop: "2px" }}>
+            <PdfBadge level={task.level} />
+            <span style={{ fontSize: "9px", color: "#9ca3af", letterSpacing: "0.04em" }}>{task.category}</span>
+          </div>
+        </div>
+      </div>
+      <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "12px", marginLeft: "24px" }}>
+        <PdfField label="Completed By" value={value.completedBy} />
+        <PdfField label="Date" value={value.date} />
+      </div>
+    </div>
+  );
+}
+
+// ─── Main Component ───────────────────────────────────────────────────────────
 
 export default function Home() {
+  const [form, setForm] = useState<FormData>(defaultForm);
+  const [generating, setGenerating] = useState(false);
+  const printRef = useRef<HTMLDivElement>(null);
+
+  const set = (key: keyof FormData) => (value: FormData[typeof key]) =>
+    setForm((f) => ({ ...f, [key]: value }));
+
+  const setTask = (id: string) => (value: { checked: boolean; completedBy: string; date: string }) =>
+    setForm((f) => ({ ...f, tasks: { ...f.tasks, [id]: value } }));
+
+  const setDrill = (index: number, field: keyof DrillRow) => (value: string) =>
+    setForm((f) => {
+      const drills = [...f.drills];
+      drills[index] = { ...drills[index], [field]: value };
+      return { ...f, drills };
+    });
+
+  const addDrillRow = () =>
+    setForm((f) => ({ ...f, drills: [...f.drills, { ...EMPTY_DRILL }] }));
+
+  const removeDrillRow = (i: number) =>
+    setForm((f) => ({ ...f, drills: f.drills.filter((_, idx) => idx !== i) }));
+
+  const handleDownload = async () => {
+    setGenerating(true);
+    const el = printRef.current;
+    if (!el) return;
+    // Dynamically import html2pdf to avoid SSR issues
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const html2pdf = (await import("html2pdf.js" as any)).default;
+    html2pdf()
+      .set({
+        margin: 0,
+        filename: `martyns-law-checklist-${form.schoolName.replace(/\s+/g, "-") || "school"}.pdf`,
+        image: { type: "jpeg", quality: 0.98 },
+        html2canvas: { scale: 2, useCORS: true },
+        jsPDF: { unit: "px", format: [794, 1123], orientation: "portrait" },
+      })
+      .from(el)
+      .save()
+      .then(() => setGenerating(false));
+  };
+
+  // Group tasks by category for display
+  const categories = [...new Set(TASKS.map((t) => t.category))];
+
+  const tasksOnPage3 = TASKS.filter((t) =>
+    ["GOVERNANCE", "REGISTRATION", "PROCEDURES"].includes(t.category) &&
+    !["multi_channel", "send_plans"].includes(t.id)
+  );
+  const tasksOnPage4a = TASKS.filter((t) =>
+    (t.category === "PROCEDURES" && ["multi_channel", "send_plans"].includes(t.id)) ||
+    t.category === "TRAINING" ||
+    t.category === "REVIEW" && t.id !== "board_signoff"
+  );
+  const tasksOnPage5 = TASKS.filter((t) => t.id === "board_signoff");
+
   return (
-    <div className="flex flex-col flex-1 items-center justify-center bg-zinc-50 font-sans dark:bg-black">
-      <main className="flex flex-1 w-full max-w-3xl flex-col items-center justify-between py-32 px-16 bg-white dark:bg-black sm:items-start">
-        <Image
-          className="dark:invert h-5 w-[100px]"
-          src="/next.svg"
-          alt="Next.js logo"
-          width={100}
-          height={20}
-          priority
-        />
-        <div className="flex flex-col items-center gap-6 text-center sm:items-start sm:text-left">
-          <h1 className="max-w-xs text-3xl font-semibold leading-10 tracking-tight text-black dark:text-zinc-50">
-            To get started, edit the{" "}
-            <code className="rounded bg-black/[.06] px-1.5 py-0.5 font-mono text-[0.9em] dark:bg-white/[.08]">
-              page.tsx
-            </code>{" "}
-            file.
-          </h1>
-          <p className="max-w-md text-lg leading-8 text-zinc-600 dark:text-zinc-400">
-            Looking for a starting point or more instructions? Head over to{" "}
-            <a
-              href="https://vercel.com/templates?framework=next.js&utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-              className="font-medium text-zinc-950 dark:text-zinc-50"
-            >
-              Templates
-            </a>{" "}
-            or the{" "}
-            <a
-              href="https://nextjs.org/learn?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-              className="font-medium text-zinc-950 dark:text-zinc-50"
-            >
-              Learning
-            </a>{" "}
-            center.
+    <div className="min-h-screen">
+      {/* ── Top nav ── */}
+      <nav className="bg-[#162040] text-white px-6 py-4 flex items-center justify-between sticky top-0 z-50 shadow-lg">
+        <div className="flex items-center gap-3">
+          <span className="font-bold text-lg tracking-tight">SOTARA</span>
+          <span className="text-blue-300 text-sm">|</span>
+          <span className="text-blue-200 text-sm">Martyn's Law Compliance Checklist</span>
+        </div>
+        <button
+          onClick={handleDownload}
+          disabled={generating}
+          className="flex items-center gap-2 bg-[#e05a2b] hover:bg-[#c94e22] disabled:opacity-60 text-white text-sm font-semibold px-5 py-2 rounded transition-colors"
+        >
+          {generating ? (
+            <>
+              <span className="animate-spin">⏳</span> Generating…
+            </>
+          ) : (
+            <>
+              <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" />
+              </svg>
+              Download PDF
+            </>
+          )}
+        </button>
+      </nav>
+
+      {/* ── Hero banner ── */}
+      <div className="bg-[#1e2f55] text-white px-8 py-6 border-b border-blue-900">
+        <div className="max-w-3xl">
+          <div className="inline-block bg-[#e05a2b] text-white text-[10px] font-bold px-3 py-1 rounded mb-3 tracking-widest">
+            FREE TOOL FROM SOTARA
+          </div>
+          <p className="text-blue-100 text-sm leading-relaxed">
+            A fillable record of your school or trust's Standard Tier obligations under Martyn's Law:
+            Responsible Person &amp; SIA registration, the compliance checklist, drill log, and governance
+            sign-off. Fill in the form below and click <strong>Download PDF</strong> to save your record.
           </p>
         </div>
-        <div className="flex flex-col gap-4 text-base font-medium sm:flex-row">
-          <a
-            className="flex h-12 w-full items-center justify-center gap-2 rounded-full bg-foreground px-5 text-background transition-colors hover:bg-[#383838] dark:hover:bg-[#ccc] md:w-[158px]"
-            href="https://vercel.com/new?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-            target="_blank"
-            rel="noopener noreferrer"
-          >
-            <Image
-              className="dark:invert h-[14px] w-4"
-              src="/vercel.svg"
-              alt="Vercel logomark"
-              width={16}
-              height={14}
-            />
-            Deploy Now
-          </a>
-          <a
-            className="flex h-12 w-full items-center justify-center rounded-full border border-solid border-black/[.08] px-5 transition-colors hover:border-transparent hover:bg-black/[.04] dark:border-white/[.145] dark:hover:bg-[#1a1a1a] md:w-[158px]"
-            href="https://nextjs.org/docs?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-            target="_blank"
-            rel="noopener noreferrer"
-          >
-            Documentation
-          </a>
+      </div>
+
+      {/* ── Form ── */}
+      <div className="max-w-3xl mx-auto px-4 py-8 space-y-8">
+
+        {/* Section 1: Cover */}
+        <div className="bg-white rounded-lg overflow-hidden shadow-sm">
+          <SectionHeader title="School / Trust Details" subtitle="COVER" />
+          <div className="p-8 space-y-5">
+            <Field label="School / Trust Name" value={form.schoolName} onChange={set("schoolName")} />
+            <Field label="Site / Premises Name" value={form.siteName} onChange={set("siteName")} />
+            <div className="grid grid-cols-2 gap-6">
+              <Field label="Approx. Number of Pupils / Staff on Site at Peak" value={form.peakNumber} onChange={set("peakNumber")} />
+              <Field label="Number of Sites in This Trust (if applicable)" value={form.numberOfSites} onChange={set("numberOfSites")} />
+            </div>
+            <div className="pt-2 border-t border-gray-100">
+              <h3 className="font-bold text-[#162040] text-sm mb-4">Document Owner</h3>
+              <div className="grid grid-cols-2 gap-6">
+                <Field label="Completed By (Name & Role)" value={form.completedBy} onChange={set("completedBy")} className="col-span-2" />
+                <Field label="Date Completed" value={form.dateCompleted} onChange={set("dateCompleted")} type="date" />
+              </div>
+            </div>
+            <div className="bg-gray-50 rounded p-4 text-xs text-gray-600 border border-gray-200">
+              <strong>What this covers:</strong> Early years, primary, secondary and further education settings sit in the Standard Tier regardless of pupil numbers. This checklist reflects common Standard Tier guidance — verify wording against the official Section 27 statutory guidance and take your own legal advice before relying on it as a formal compliance record.
+            </div>
+          </div>
         </div>
-      </main>
+
+        {/* Section 2: Responsible Person & SIA */}
+        <div className="bg-white rounded-lg overflow-hidden shadow-sm">
+          <SectionHeader title="Responsible Person & SIA" subtitle="STANDARD TIER · SECTION 1 OF 4" />
+          <div className="p-8 space-y-6">
+            <div>
+              <h3 className="font-bold text-[#162040] text-sm mb-1">Responsible Person</h3>
+              <p className="text-xs text-gray-500 mb-4">Standard Tier requires a named individual with formal oversight of preparedness.</p>
+              <div className="grid grid-cols-2 gap-6">
+                <Field label="Name" value={form.rpName} onChange={set("rpName")} />
+                <Field label="Role" value={form.rpRole} onChange={set("rpRole")} />
+                <Field label="Email" value={form.rpEmail} onChange={set("rpEmail")} type="email" />
+                <Field label="Appointed On (Date)" value={form.rpAppointedOn} onChange={set("rpAppointedOn")} type="date" />
+              </div>
+            </div>
+
+            <div className="border-t border-gray-100 pt-6">
+              <h3 className="font-bold text-[#162040] text-sm mb-1">SIA Registration</h3>
+              <p className="text-xs text-gray-500 mb-4">Confirms the school understands its responsibilities and has proportionate measures in place.</p>
+              <label className="flex items-center gap-3 cursor-pointer mb-4">
+                <button
+                  type="button"
+                  onClick={() => set("siaRegistered")(!form.siaRegistered)}
+                  className={`w-5 h-5 border-2 rounded transition-colors flex-shrink-0 ${form.siaRegistered ? "bg-[#162040] border-[#162040]" : "border-gray-400 bg-white"}`}
+                >
+                  {form.siaRegistered && (
+                    <svg className="w-full h-full p-0.5 text-white" viewBox="0 0 12 12" fill="none">
+                      <path d="M2 6l3 3 5-5" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
+                    </svg>
+                  )}
+                </button>
+                <span className="text-sm text-gray-800">Registered with the SIA</span>
+              </label>
+              <Field label="Registration Date" value={form.siaRegistrationDate} onChange={set("siaRegistrationDate")} type="date" className="max-w-xs" />
+            </div>
+
+            <div className="border-t border-gray-100 pt-6">
+              <TextArea label="Notes" value={form.siaaNotes} onChange={set("siaaNotes")} />
+            </div>
+          </div>
+        </div>
+
+        {/* Section 3: Compliance Tasks */}
+        <div className="bg-white rounded-lg overflow-hidden shadow-sm">
+          <SectionHeader title="Compliance Tasks" subtitle="STANDARD TIER · SECTION 2 OF 4" />
+          <div className="px-8 pt-4 pb-2">
+            <p className="text-xs text-gray-500">
+              <strong>"Must"</strong> = express legal requirement in the guidance. &nbsp;
+              <strong>"Should"</strong> = expected good practice. &nbsp;
+              <strong>"Could"</strong> = optional.
+            </p>
+          </div>
+          <div className="px-8 pb-8">
+            {categories.map((cat) => (
+              <div key={cat} className="mt-6">
+                <h3 className="text-xs font-bold tracking-widest text-[#162040] border-b-2 border-[#162040] pb-1 mb-2">{cat}</h3>
+                {TASKS.filter((t) => t.category === cat).map((task) => (
+                  <TaskItem key={task.id} task={task} value={form.tasks[task.id]} onChange={setTask(task.id)} />
+                ))}
+              </div>
+            ))}
+          </div>
+        </div>
+
+        {/* Section 4: Drill Log */}
+        <div className="bg-white rounded-lg overflow-hidden shadow-sm">
+          <SectionHeader title="Drill Log" subtitle="STANDARD TIER · SECTION 3 OF 4" />
+          <div className="p-8">
+            <p className="text-xs text-gray-500 mb-6">Record termly practice of evacuation, invacuation, lockdown and communication procedures.</p>
+
+            {/* Table header */}
+            <div className="grid grid-cols-[120px_140px_160px_1fr_32px] gap-2 mb-2">
+              {["Date", "Type", "Logged By", "Notes / Outcome", ""].map((h) => (
+                <span key={h} className="field-label">{h}</span>
+              ))}
+            </div>
+
+            {form.drills.map((drill, i) => (
+              <div key={i} className="grid grid-cols-[120px_140px_160px_1fr_32px] gap-2 mb-3 items-center">
+                <input type="date" value={drill.date} onChange={(e) => setDrill(i, "date")(e.target.value)} className="field-input" />
+                <select value={drill.type} onChange={(e) => setDrill(i, "type")(e.target.value)} className="field-input">
+                  <option value="">Select…</option>
+                  {DRILL_TYPES.map((t) => <option key={t}>{t}</option>)}
+                </select>
+                <input value={drill.loggedBy} onChange={(e) => setDrill(i, "loggedBy")(e.target.value)} className="field-input" placeholder="Name" />
+                <input value={drill.notes} onChange={(e) => setDrill(i, "notes")(e.target.value)} className="field-input" placeholder="Outcome…" />
+                <button
+                  type="button"
+                  onClick={() => removeDrillRow(i)}
+                  className="text-gray-300 hover:text-red-400 transition-colors text-lg leading-none"
+                  title="Remove row"
+                >
+                  ×
+                </button>
+              </div>
+            ))}
+
+            <button
+              type="button"
+              onClick={addDrillRow}
+              className="mt-2 text-xs text-[#162040] border border-[#162040] hover:bg-[#162040] hover:text-white px-3 py-1.5 rounded transition-colors"
+            >
+              + Add Row
+            </button>
+          </div>
+        </div>
+
+        {/* Section 5: Governance & Sign-off */}
+        <div className="bg-white rounded-lg overflow-hidden shadow-sm">
+          <SectionHeader title="Governance & Sign-off" subtitle="STANDARD TIER · SECTION 4 OF 4" />
+          <div className="p-8 space-y-6">
+            <p className="text-xs text-gray-500">
+              The governing body or trust board is legally responsible for Standard Tier compliance — record
+              formal review here once it has been minuted, rather than leaving it informal.
+            </p>
+
+            <div>
+              <h3 className="font-bold text-[#162040] text-sm mb-4">Latest Sign-off</h3>
+              <div className="space-y-4">
+                <Field label="Reviewed / Approved By" value={form.reviewedBy} onChange={set("reviewedBy")} />
+                <div className="grid grid-cols-2 gap-6">
+                  <Field label="Review Date" value={form.reviewDate} onChange={set("reviewDate")} type="date" />
+                  <Field label="Next Review Due" value={form.nextReviewDue} onChange={set("nextReviewDue")} type="date" />
+                </div>
+                <TextArea label="Notes (Minute Reference, Decisions Made, Outstanding Actions)" value={form.govNotes} onChange={set("govNotes")} />
+              </div>
+            </div>
+
+            <div className="border-t border-gray-100 pt-6">
+              <h3 className="font-bold text-[#162040] text-sm mb-4">Sign-off Record</h3>
+              <div className="grid grid-cols-2 gap-6">
+                <Field label="Signed (Chair of Governors / Trust Representative)" value={form.signedBy} onChange={set("signedBy")} />
+                <Field label="Date Signed" value={form.dateSigned} onChange={set("dateSigned")} type="date" />
+              </div>
+            </div>
+          </div>
+        </div>
+
+        {/* Download CTA */}
+        <div className="text-center py-4">
+          <button
+            onClick={handleDownload}
+            disabled={generating}
+            className="inline-flex items-center gap-3 bg-[#162040] hover:bg-[#1e2f55] disabled:opacity-60 text-white font-bold px-10 py-4 rounded-lg text-base transition-colors shadow-lg"
+          >
+            {generating ? "Generating PDF…" : "Download as PDF"}
+          </button>
+          <p className="text-xs text-gray-400 mt-3">Your data stays in your browser — nothing is uploaded or stored.</p>
+        </div>
+
+      </div>
+
+      {/* ── Hidden PDF layout ── */}
+      <div style={{ position: "absolute", left: "-9999px", top: 0, width: "794px" }}>
+        <div ref={printRef} style={{ width: "794px", fontFamily: "-apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif" }}>
+
+          {/* PDF Page 1 — Cover */}
+          <div style={{ position: "relative", width: "794px", minHeight: "1123px", background: "white", pageBreakAfter: "always" }}>
+            <div style={{ background: "#162040", color: "white", padding: "24px 32px", display: "flex", justifyContent: "space-between" }}>
+              <div>
+                <div style={{ fontSize: "22px", fontWeight: "bold" }}>Martyn's Law Compliance Checklist</div>
+                <div style={{ fontSize: "10px", color: "#93c5fd", letterSpacing: "0.05em", marginTop: "2px" }}>STANDARD TIER · TERRORISM (PROTECTION OF PREMISES) ACT 2025</div>
+              </div>
+              <div style={{ textAlign: "right" }}>
+                <div style={{ fontSize: "11px", fontWeight: "bold", color: "#93c5fd", letterSpacing: "0.1em" }}>SOTARA</div>
+                <div style={{ fontSize: "9px", color: "#93c5fd" }}>COVER</div>
+              </div>
+            </div>
+            <div style={{ height: "3px", background: "linear-gradient(to right, #3b82f6, #1d4ed8)" }} />
+            <div style={{ padding: "28px 32px" }}>
+              <div style={{ display: "inline-block", background: "#e05a2b", color: "white", fontSize: "9px", fontWeight: "bold", padding: "3px 10px", borderRadius: "3px", letterSpacing: "0.1em", marginBottom: "16px" }}>FREE TOOL FROM SOTARA</div>
+              <p style={{ fontSize: "12px", color: "#374151", lineHeight: "1.6", marginBottom: "28px" }}>A fillable record of your school or trust's Standard Tier obligations under Martyn's Law: Responsible Person &amp; SIA registration, the compliance checklist, drill log, and governance sign-off. Print, save, or fill digitally.</p>
+
+              <h3 style={{ fontWeight: "bold", fontSize: "16px", color: "#111827", borderBottom: "1px solid #e5e7eb", paddingBottom: "6px", marginBottom: "16px" }}>School / Trust Details</h3>
+              <PdfField label="School / Trust Name" value={form.schoolName} />
+              <PdfField label="Site / Premises Name" value={form.siteName} />
+              <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "16px" }}>
+                <PdfField label="Approx. Number of Pupils/Staff on Site at Peak" value={form.peakNumber} />
+                <PdfField label="Number of Sites in This Trust (if applicable)" value={form.numberOfSites} />
+              </div>
+
+              <h3 style={{ fontWeight: "bold", fontSize: "16px", color: "#111827", borderBottom: "1px solid #e5e7eb", paddingBottom: "6px", marginBottom: "16px", marginTop: "24px" }}>Document Owner</h3>
+              <PdfField label="Completed By (Name & Role)" value={form.completedBy} />
+              <div style={{ maxWidth: "260px" }}>
+                <PdfField label="Date Completed" value={form.dateCompleted} />
+              </div>
+
+              <div style={{ marginTop: "32px", border: "1px solid #e5e7eb", borderRadius: "6px", padding: "14px 16px", background: "#f9fafb" }}>
+                <div style={{ fontWeight: "600", fontSize: "11px", marginBottom: "4px" }}>What this covers</div>
+                <p style={{ fontSize: "11px", color: "#6b7280", lineHeight: "1.5" }}>Early years, primary, secondary and further education settings sit in the Standard Tier regardless of pupil numbers. This checklist reflects common Standard Tier guidance — verify wording against the official Section 27 statutory guidance and take your own legal advice before relying on it as a formal compliance record.</p>
+              </div>
+            </div>
+            <div style={{ position: "absolute", bottom: "12px", left: "32px", right: "32px", borderTop: "1px solid #e5e7eb", paddingTop: "6px", display: "flex", justifyContent: "space-between" }}>
+              <span style={{ fontSize: "9px", color: "#9ca3af" }}>Martyn's Law Standard Tier Compliance Checklist · Powered by Sotara</span>
+              <span style={{ fontSize: "9px", color: "#9ca3af" }}>Page 1</span>
+            </div>
+          </div>
+
+          {/* PDF Page 2 — Responsible Person & SIA */}
+          <div style={{ position: "relative", width: "794px", minHeight: "1123px", background: "white", pageBreakAfter: "always" }}>
+            <div style={{ background: "#162040", color: "white", padding: "24px 32px", display: "flex", justifyContent: "space-between" }}>
+              <div>
+                <div style={{ fontSize: "22px", fontWeight: "bold" }}>Responsible Person &amp; SIA</div>
+                <div style={{ fontSize: "10px", color: "#93c5fd", letterSpacing: "0.05em", marginTop: "2px" }}>STANDARD TIER · SECTION 1 OF 4</div>
+              </div>
+              <div style={{ textAlign: "right" }}>
+                <div style={{ fontSize: "11px", fontWeight: "bold", color: "#93c5fd", letterSpacing: "0.1em" }}>SOTARA</div>
+                <div style={{ fontSize: "9px", color: "#93c5fd" }}>PAGE 2</div>
+              </div>
+            </div>
+            <div style={{ height: "3px", background: "linear-gradient(to right, #3b82f6, #1d4ed8)" }} />
+            <div style={{ padding: "28px 32px" }}>
+              <h3 style={{ fontWeight: "bold", fontSize: "15px", color: "#111827", borderBottom: "1px solid #e5e7eb", paddingBottom: "6px", marginBottom: "10px" }}>Responsible Person</h3>
+              <p style={{ fontSize: "11px", color: "#6b7280", marginBottom: "14px" }}>Standard Tier requires a named individual with formal oversight of preparedness.</p>
+              <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "16px" }}>
+                <PdfField label="Name" value={form.rpName} />
+                <PdfField label="Role" value={form.rpRole} />
+                <PdfField label="Email" value={form.rpEmail} />
+                <PdfField label="Appointed On (Date)" value={form.rpAppointedOn} />
+              </div>
+
+              <h3 style={{ fontWeight: "bold", fontSize: "15px", color: "#111827", borderBottom: "1px solid #e5e7eb", paddingBottom: "6px", marginBottom: "10px", marginTop: "24px" }}>SIA Registration</h3>
+              <p style={{ fontSize: "11px", color: "#6b7280", marginBottom: "14px" }}>Confirms the school understands its responsibilities and has proportionate measures in place.</p>
+              <div style={{ display: "flex", alignItems: "center", gap: "10px", marginBottom: "14px" }}>
+                <div style={{ width: "14px", height: "14px", border: "1.5px solid", borderColor: form.siaRegistered ? "#162040" : "#9ca3af", background: form.siaRegistered ? "#162040" : "white", display: "flex", alignItems: "center", justifyContent: "center" }}>
+                  {form.siaRegistered && <span style={{ color: "white", fontSize: "10px" }}>✓</span>}
+                </div>
+                <span style={{ fontSize: "12px" }}>Registered with the SIA</span>
+              </div>
+              <div style={{ maxWidth: "260px" }}>
+                <PdfField label="Registration Date" value={form.siaRegistrationDate} />
+              </div>
+
+              <h3 style={{ fontWeight: "bold", fontSize: "15px", color: "#111827", borderBottom: "1px solid #e5e7eb", paddingBottom: "6px", marginBottom: "10px", marginTop: "24px" }}>Notes</h3>
+              <div style={{ minHeight: "80px", background: "#fef4f1", borderBottom: "1.5px solid #d1d5db", padding: "8px", fontSize: "12px", color: "#1f2937" }}>{form.siaaNotes}</div>
+            </div>
+            <div style={{ position: "absolute", bottom: "12px", left: "32px", right: "32px", borderTop: "1px solid #e5e7eb", paddingTop: "6px", display: "flex", justifyContent: "space-between" }}>
+              <span style={{ fontSize: "9px", color: "#9ca3af" }}>Martyn's Law Standard Tier Compliance Checklist · Powered by Sotara</span>
+              <span style={{ fontSize: "9px", color: "#9ca3af" }}>Page 2</span>
+            </div>
+          </div>
+
+          {/* PDF Page 3 — Compliance Tasks (part 1) */}
+          <div style={{ position: "relative", width: "794px", minHeight: "1123px", background: "white", pageBreakAfter: "always" }}>
+            <div style={{ background: "#162040", color: "white", padding: "24px 32px", display: "flex", justifyContent: "space-between" }}>
+              <div>
+                <div style={{ fontSize: "22px", fontWeight: "bold" }}>Compliance Tasks</div>
+                <div style={{ fontSize: "10px", color: "#93c5fd", letterSpacing: "0.05em", marginTop: "2px" }}>STANDARD TIER · SECTION 2 OF 4</div>
+              </div>
+              <div style={{ textAlign: "right" }}>
+                <div style={{ fontSize: "11px", fontWeight: "bold", color: "#93c5fd", letterSpacing: "0.1em" }}>SOTARA</div>
+                <div style={{ fontSize: "9px", color: "#93c5fd" }}>PAGE 3</div>
+              </div>
+            </div>
+            <div style={{ height: "3px", background: "linear-gradient(to right, #3b82f6, #1d4ed8)" }} />
+            <div style={{ padding: "20px 32px" }}>
+              <p style={{ fontSize: "11px", color: "#6b7280", marginBottom: "16px" }}>"Must" = express legal requirement in the guidance. &nbsp;"Should" = expected good practice. &nbsp;"Could" = optional.</p>
+              {["GOVERNANCE", "REGISTRATION", "PROCEDURES"].map((cat) => (
+                <div key={cat}>
+                  <div style={{ fontWeight: "bold", fontSize: "11px", letterSpacing: "0.1em", color: "#162040", borderBottom: "2px solid #162040", paddingBottom: "3px", marginBottom: "2px", marginTop: "14px" }}>{cat}</div>
+                  {tasksOnPage3.filter((t) => t.category === cat).map((task) => (
+                    <PdfTaskItem key={task.id} task={task} value={form.tasks[task.id]} />
+                  ))}
+                </div>
+              ))}
+            </div>
+            <div style={{ position: "absolute", bottom: "12px", left: "32px", right: "32px", borderTop: "1px solid #e5e7eb", paddingTop: "6px", display: "flex", justifyContent: "space-between" }}>
+              <span style={{ fontSize: "9px", color: "#9ca3af" }}>Martyn's Law Standard Tier Compliance Checklist · Powered by Sotara</span>
+              <span style={{ fontSize: "9px", color: "#9ca3af" }}>Page 3</span>
+            </div>
+          </div>
+
+          {/* PDF Page 4 — Compliance Tasks (part 2) */}
+          <div style={{ position: "relative", width: "794px", minHeight: "1123px", background: "white", pageBreakAfter: "always" }}>
+            <div style={{ background: "#162040", color: "white", padding: "24px 32px", display: "flex", justifyContent: "space-between" }}>
+              <div>
+                <div style={{ fontSize: "22px", fontWeight: "bold" }}>Compliance Tasks (cont.)</div>
+                <div style={{ fontSize: "10px", color: "#93c5fd", letterSpacing: "0.05em", marginTop: "2px" }}>STANDARD TIER · SECTION 2 OF 4</div>
+              </div>
+              <div style={{ textAlign: "right" }}>
+                <div style={{ fontSize: "11px", fontWeight: "bold", color: "#93c5fd", letterSpacing: "0.1em" }}>SOTARA</div>
+                <div style={{ fontSize: "9px", color: "#93c5fd" }}>PAGE 4</div>
+              </div>
+            </div>
+            <div style={{ height: "3px", background: "linear-gradient(to right, #3b82f6, #1d4ed8)" }} />
+            <div style={{ padding: "20px 32px" }}>
+              {["PROCEDURES", "TRAINING", "REVIEW"].map((cat) => {
+                const items = tasksOnPage4a.filter((t) => t.category === cat);
+                if (!items.length) return null;
+                return (
+                  <div key={cat}>
+                    <div style={{ fontWeight: "bold", fontSize: "11px", letterSpacing: "0.1em", color: "#162040", borderBottom: "2px solid #162040", paddingBottom: "3px", marginBottom: "2px", marginTop: "14px" }}>{cat}</div>
+                    {items.map((task) => (
+                      <PdfTaskItem key={task.id} task={task} value={form.tasks[task.id]} />
+                    ))}
+                  </div>
+                );
+              })}
+            </div>
+            <div style={{ position: "absolute", bottom: "12px", left: "32px", right: "32px", borderTop: "1px solid #e5e7eb", paddingTop: "6px", display: "flex", justifyContent: "space-between" }}>
+              <span style={{ fontSize: "9px", color: "#9ca3af" }}>Martyn's Law Standard Tier Compliance Checklist · Powered by Sotara</span>
+              <span style={{ fontSize: "9px", color: "#9ca3af" }}>Page 4</span>
+            </div>
+          </div>
+
+          {/* PDF Page 5 — Compliance Tasks (cont.) board sign-off */}
+          <div style={{ position: "relative", width: "794px", minHeight: "1123px", background: "white", pageBreakAfter: "always" }}>
+            <div style={{ background: "#162040", color: "white", padding: "24px 32px", display: "flex", justifyContent: "space-between" }}>
+              <div>
+                <div style={{ fontSize: "22px", fontWeight: "bold" }}>Compliance Tasks (cont.)</div>
+                <div style={{ fontSize: "10px", color: "#93c5fd", letterSpacing: "0.05em", marginTop: "2px" }}>STANDARD TIER · SECTION 2 OF 4</div>
+              </div>
+              <div style={{ textAlign: "right" }}>
+                <div style={{ fontSize: "11px", fontWeight: "bold", color: "#93c5fd", letterSpacing: "0.1em" }}>SOTARA</div>
+                <div style={{ fontSize: "9px", color: "#93c5fd" }}>PAGE 5</div>
+              </div>
+            </div>
+            <div style={{ height: "3px", background: "linear-gradient(to right, #3b82f6, #1d4ed8)" }} />
+            <div style={{ padding: "20px 32px" }}>
+              <div style={{ fontWeight: "bold", fontSize: "11px", letterSpacing: "0.1em", color: "#162040", borderBottom: "2px solid #162040", paddingBottom: "3px", marginBottom: "2px" }}>REVIEW</div>
+              {tasksOnPage5.map((task) => (
+                <PdfTaskItem key={task.id} task={task} value={form.tasks[task.id]} />
+              ))}
+            </div>
+            <div style={{ position: "absolute", bottom: "12px", left: "32px", right: "32px", borderTop: "1px solid #e5e7eb", paddingTop: "6px", display: "flex", justifyContent: "space-between" }}>
+              <span style={{ fontSize: "9px", color: "#9ca3af" }}>Martyn's Law Standard Tier Compliance Checklist · Powered by Sotara</span>
+              <span style={{ fontSize: "9px", color: "#9ca3af" }}>Page 5</span>
+            </div>
+          </div>
+
+          {/* PDF Page 6 — Drill Log */}
+          <div style={{ position: "relative", width: "794px", minHeight: "1123px", background: "white", pageBreakAfter: "always" }}>
+            <div style={{ background: "#162040", color: "white", padding: "24px 32px", display: "flex", justifyContent: "space-between" }}>
+              <div>
+                <div style={{ fontSize: "22px", fontWeight: "bold" }}>Drill Log</div>
+                <div style={{ fontSize: "10px", color: "#93c5fd", letterSpacing: "0.05em", marginTop: "2px" }}>STANDARD TIER · SECTION 3 OF 4</div>
+              </div>
+              <div style={{ textAlign: "right" }}>
+                <div style={{ fontSize: "11px", fontWeight: "bold", color: "#93c5fd", letterSpacing: "0.1em" }}>SOTARA</div>
+                <div style={{ fontSize: "9px", color: "#93c5fd" }}>PAGE 6</div>
+              </div>
+            </div>
+            <div style={{ height: "3px", background: "linear-gradient(to right, #3b82f6, #1d4ed8)" }} />
+            <div style={{ padding: "20px 32px" }}>
+              <p style={{ fontSize: "11px", color: "#6b7280", marginBottom: "14px" }}>Record termly practice of evacuation, invacuation, lockdown and communication procedures.</p>
+              <div style={{ display: "grid", gridTemplateColumns: "100px 120px 150px 1fr", gap: "8px", marginBottom: "6px" }}>
+                {["DATE", "TYPE", "LOGGED BY", "NOTES / OUTCOME"].map((h) => (
+                  <span key={h} style={{ fontSize: "9px", fontWeight: "600", letterSpacing: "0.08em", color: "#9ca3af", textTransform: "uppercase" }}>{h}</span>
+                ))}
+              </div>
+              {form.drills.map((drill, i) => (
+                <div key={i} style={{ display: "grid", gridTemplateColumns: "100px 120px 150px 1fr", gap: "8px", marginBottom: "8px" }}>
+                  {[drill.date, drill.type, drill.loggedBy, drill.notes].map((v, j) => (
+                    <div key={j} style={{ background: "#fef4f1", borderBottom: "1.5px solid #d1d5db", minHeight: "22px", padding: "2px 6px", fontSize: "11px", color: "#1f2937" }}>{v}</div>
+                  ))}
+                </div>
+              ))}
+              <p style={{ fontSize: "10px", color: "#9ca3af", marginTop: "12px" }}>Type options: Evacuation / Invacuation / Lockdown / Communication</p>
+            </div>
+            <div style={{ position: "absolute", bottom: "12px", left: "32px", right: "32px", borderTop: "1px solid #e5e7eb", paddingTop: "6px", display: "flex", justifyContent: "space-between" }}>
+              <span style={{ fontSize: "9px", color: "#9ca3af" }}>Martyn's Law Standard Tier Compliance Checklist · Powered by Sotara</span>
+              <span style={{ fontSize: "9px", color: "#9ca3af" }}>Page 6</span>
+            </div>
+          </div>
+
+          {/* PDF Page 7 — Governance & Sign-off */}
+          <div style={{ position: "relative", width: "794px", minHeight: "1123px", background: "white" }}>
+            <div style={{ background: "#162040", color: "white", padding: "24px 32px", display: "flex", justifyContent: "space-between" }}>
+              <div>
+                <div style={{ fontSize: "22px", fontWeight: "bold" }}>Governance &amp; Sign-off</div>
+                <div style={{ fontSize: "10px", color: "#93c5fd", letterSpacing: "0.05em", marginTop: "2px" }}>STANDARD TIER · SECTION 4 OF 4</div>
+              </div>
+              <div style={{ textAlign: "right" }}>
+                <div style={{ fontSize: "11px", fontWeight: "bold", color: "#93c5fd", letterSpacing: "0.1em" }}>SOTARA</div>
+                <div style={{ fontSize: "9px", color: "#93c5fd" }}>PAGE 7</div>
+              </div>
+            </div>
+            <div style={{ height: "3px", background: "linear-gradient(to right, #3b82f6, #1d4ed8)" }} />
+            <div style={{ padding: "24px 32px" }}>
+              <p style={{ fontSize: "11px", color: "#6b7280", marginBottom: "20px" }}>The governing body or trust board is legally responsible for Standard Tier compliance — record formal review here once it has been minuted, rather than leaving it informal.</p>
+
+              <h3 style={{ fontWeight: "bold", fontSize: "15px", color: "#111827", borderBottom: "1px solid #e5e7eb", paddingBottom: "6px", marginBottom: "14px" }}>Latest Sign-off</h3>
+              <PdfField label="Reviewed / Approved By" value={form.reviewedBy} />
+              <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "16px" }}>
+                <PdfField label="Review Date" value={form.reviewDate} />
+                <PdfField label="Next Review Due" value={form.nextReviewDue} />
+              </div>
+              <div style={{ marginTop: "8px" }}>
+                <div style={{ fontSize: "9px", fontWeight: "600", letterSpacing: "0.08em", color: "#9ca3af", textTransform: "uppercase", marginBottom: "2px" }}>Notes (Minute Reference, Decisions Made, Outstanding Actions)</div>
+                <div style={{ borderBottom: "1.5px solid #d1d5db", background: "#fef4f1", minHeight: "80px", padding: "6px", fontSize: "12px", color: "#1f2937", whiteSpace: "pre-wrap" }}>{form.govNotes}</div>
+              </div>
+
+              <h3 style={{ fontWeight: "bold", fontSize: "15px", color: "#111827", borderBottom: "1px solid #e5e7eb", paddingBottom: "6px", marginBottom: "14px", marginTop: "24px" }}>Sign-off Record</h3>
+              <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "16px" }}>
+                <PdfField label="Signed (Chair of Governors / Trust Representative)" value={form.signedBy} />
+                <PdfField label="Date Signed" value={form.dateSigned} />
+              </div>
+
+              {/* Sotara promo box */}
+              <div style={{ marginTop: "40px", border: "1px solid #e5e7eb", borderRadius: "6px", padding: "16px 20px", display: "flex", gap: "16px", alignItems: "flex-start" }}>
+                <div>
+                  <div style={{ fontWeight: "bold", fontSize: "13px", color: "#162040", marginBottom: "4px" }}>More than a checklist?</div>
+                  <p style={{ fontSize: "11px", color: "#6b7280", marginBottom: "6px" }}>Sotara builds operations software for UK schools — leave management, helpdesk, visitor sign-in and more.</p>
+                  <span style={{ fontSize: "11px", color: "#162040", fontWeight: "600" }}>Scan to explore → sotara.co.uk</span>
+                </div>
+              </div>
+            </div>
+            <div style={{ position: "absolute", bottom: "12px", left: "32px", right: "32px", borderTop: "1px solid #e5e7eb", paddingTop: "6px", display: "flex", justifyContent: "space-between" }}>
+              <span style={{ fontSize: "9px", color: "#9ca3af" }}>Martyn's Law Standard Tier Compliance Checklist · Powered by Sotara</span>
+              <span style={{ fontSize: "9px", color: "#9ca3af" }}>Page 7</span>
+            </div>
+          </div>
+
+        </div>
+      </div>
+
     </div>
   );
 }
