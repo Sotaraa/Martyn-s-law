@@ -121,13 +121,38 @@ function Field({
   label: string; value: string; onChange: (v: string) => void; type?: string; className?: string;
 }) {
   return (
-    <div className={className}>
+    <div className={`field-wrap ${className}`}>
       <label className="field-label">{label}</label>
       <input
         type={type}
         value={value}
         onChange={(e) => onChange(e.target.value)}
         className="field-input"
+        placeholder=" "
+      />
+    </div>
+  );
+}
+
+function DateField({
+  label, value, onChange, className = "",
+}: {
+  label: string; value: string; onChange: (v: string) => void; className?: string;
+}) {
+  return (
+    <div className={`date-wrap ${className}`}>
+      <label className="field-label">{label}</label>
+      <svg className="date-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
+        <rect x="3" y="4" width="18" height="18" rx="3"/>
+        <line x1="16" y1="2" x2="16" y2="6"/>
+        <line x1="8" y1="2" x2="8" y2="6"/>
+        <line x1="3" y1="10" x2="21" y2="10"/>
+      </svg>
+      <input
+        type="date"
+        value={value}
+        onChange={(e) => onChange(e.target.value)}
+        className="date-input"
       />
     </div>
   );
@@ -139,15 +164,53 @@ function TextArea({
   label: string; value: string; onChange: (v: string) => void; rows?: number;
 }) {
   return (
-    <div>
+    <div className="field-wrap">
       <label className="field-label">{label}</label>
       <textarea
         value={value}
         onChange={(e) => onChange(e.target.value)}
         rows={rows}
-        className="field-input resize-none"
+        className="field-input"
       />
     </div>
+  );
+}
+
+function Checkbox({
+  checked, onChange,
+}: {
+  checked: boolean; onChange: () => void;
+}) {
+  return (
+    <button
+      type="button"
+      onClick={onChange}
+      style={{
+        width: 22, height: 22, flexShrink: 0,
+        borderRadius: 5,
+        border: checked ? "none" : "2px solid #d1d5db",
+        background: checked ? "#162040" : "#fff",
+        display: "flex", alignItems: "center", justifyContent: "center",
+        transition: "background 0.15s, border 0.15s",
+        cursor: "pointer",
+        outline: "none",
+      }}
+      onMouseEnter={(e) => { if (!checked) (e.currentTarget as HTMLElement).style.borderColor = "#9ca3af"; }}
+      onMouseLeave={(e) => { if (!checked) (e.currentTarget as HTMLElement).style.borderColor = "#d1d5db"; }}
+    >
+      {checked && (
+        <svg width="13" height="13" viewBox="0 0 12 12" fill="none">
+          <path
+            className="check-path"
+            d="M2 6l3 3 5-5"
+            stroke="white"
+            strokeWidth="2"
+            strokeLinecap="round"
+            strokeLinejoin="round"
+          />
+        </svg>
+      )}
+    </button>
   );
 }
 
@@ -165,19 +228,12 @@ function TaskItem({
   return (
     <div className="border-b border-gray-100 py-4">
       <div className="flex items-start gap-3 mb-3">
-        <button
-          type="button"
-          onClick={() => onChange({ ...value, checked: !value.checked })}
-          className={`mt-0.5 w-5 h-5 flex-shrink-0 border-2 rounded transition-colors ${
-            value.checked ? "bg-[#162040] border-[#162040]" : "border-gray-400 bg-white"
-          }`}
-        >
-          {value.checked && (
-            <svg className="w-full h-full p-0.5 text-white" viewBox="0 0 12 12" fill="none">
-              <path d="M2 6l3 3 5-5" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
-            </svg>
-          )}
-        </button>
+        <div className="mt-0.5">
+          <Checkbox
+            checked={value.checked}
+            onChange={() => onChange({ ...value, checked: !value.checked })}
+          />
+        </div>
         <div>
           <span className="text-sm font-medium text-gray-800">{task.label}</span>
           <div className="mt-1">
@@ -186,17 +242,16 @@ function TaskItem({
           </div>
         </div>
       </div>
-      <div className="grid grid-cols-2 gap-4 ml-8">
+      <div className="grid grid-cols-2 gap-4 ml-9">
         <Field
           label="Completed By"
           value={value.completedBy}
           onChange={(v) => onChange({ ...value, completedBy: v })}
         />
-        <Field
+        <DateField
           label="Date"
           value={value.date}
           onChange={(v) => onChange({ ...value, date: v })}
-          type="date"
         />
       </div>
     </div>
@@ -397,7 +452,7 @@ export default function Home() {
               <h3 className="font-bold text-[#162040] text-sm mb-4">Document Owner</h3>
               <div className="grid grid-cols-2 gap-6">
                 <Field label="Completed By (Name & Role)" value={form.completedBy} onChange={set("completedBy")} className="col-span-2" />
-                <Field label="Date Completed" value={form.dateCompleted} onChange={set("dateCompleted")} type="date" />
+                <DateField label="Date Completed" value={form.dateCompleted} onChange={set("dateCompleted")} />
               </div>
             </div>
             <div className="bg-gray-50 rounded p-4 text-xs text-gray-600 border border-gray-200">
@@ -417,7 +472,7 @@ export default function Home() {
                 <Field label="Name" value={form.rpName} onChange={set("rpName")} />
                 <Field label="Role" value={form.rpRole} onChange={set("rpRole")} />
                 <Field label="Email" value={form.rpEmail} onChange={set("rpEmail")} type="email" />
-                <Field label="Appointed On (Date)" value={form.rpAppointedOn} onChange={set("rpAppointedOn")} type="date" />
+                <DateField label="Appointed On (Date)" value={form.rpAppointedOn} onChange={set("rpAppointedOn")} />
               </div>
             </div>
 
@@ -425,20 +480,13 @@ export default function Home() {
               <h3 className="font-bold text-[#162040] text-sm mb-1">SIA Registration</h3>
               <p className="text-xs text-gray-500 mb-4">Confirms the school understands its responsibilities and has proportionate measures in place.</p>
               <label className="flex items-center gap-3 cursor-pointer mb-4">
-                <button
-                  type="button"
-                  onClick={() => set("siaRegistered")(!form.siaRegistered)}
-                  className={`w-5 h-5 border-2 rounded transition-colors flex-shrink-0 ${form.siaRegistered ? "bg-[#162040] border-[#162040]" : "border-gray-400 bg-white"}`}
-                >
-                  {form.siaRegistered && (
-                    <svg className="w-full h-full p-0.5 text-white" viewBox="0 0 12 12" fill="none">
-                      <path d="M2 6l3 3 5-5" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
-                    </svg>
-                  )}
-                </button>
+                <Checkbox
+                  checked={form.siaRegistered}
+                  onChange={() => set("siaRegistered")(!form.siaRegistered)}
+                />
                 <span className="text-sm text-gray-800">Registered with the SIA</span>
               </label>
-              <Field label="Registration Date" value={form.siaRegistrationDate} onChange={set("siaRegistrationDate")} type="date" className="max-w-xs" />
+              <DateField label="Registration Date" value={form.siaRegistrationDate} onChange={set("siaRegistrationDate")} className="max-w-xs" />
             </div>
 
             <div className="border-t border-gray-100 pt-6">
@@ -483,18 +531,23 @@ export default function Home() {
             </div>
 
             {form.drills.map((drill, i) => (
-              <div key={i} className="grid grid-cols-[120px_140px_160px_1fr_32px] gap-2 mb-3 items-center">
-                <input type="date" value={drill.date} onChange={(e) => setDrill(i, "date")(e.target.value)} className="field-input" />
-                <select value={drill.type} onChange={(e) => setDrill(i, "type")(e.target.value)} className="field-input">
+              <div key={i} className="grid grid-cols-[130px_140px_160px_1fr_32px] gap-2 mb-3 items-center">
+                <div className="relative">
+                  <svg className="date-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
+                    <rect x="3" y="4" width="18" height="18" rx="3"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/>
+                  </svg>
+                  <input type="date" value={drill.date} onChange={(e) => setDrill(i, "date")(e.target.value)} className="date-input" style={{fontSize:'12px'}} />
+                </div>
+                <select value={drill.type} onChange={(e) => setDrill(i, "type")(e.target.value)} className="field-input" style={{height:44,fontSize:13}}>
                   <option value="">Select…</option>
                   {DRILL_TYPES.map((t) => <option key={t}>{t}</option>)}
                 </select>
-                <input value={drill.loggedBy} onChange={(e) => setDrill(i, "loggedBy")(e.target.value)} className="field-input" placeholder="Name" />
-                <input value={drill.notes} onChange={(e) => setDrill(i, "notes")(e.target.value)} className="field-input" placeholder="Outcome…" />
+                <input value={drill.loggedBy} onChange={(e) => setDrill(i, "loggedBy")(e.target.value)} className="field-input" placeholder="Name" style={{height:44,fontSize:13}} />
+                <input value={drill.notes} onChange={(e) => setDrill(i, "notes")(e.target.value)} className="field-input" placeholder="Outcome…" style={{height:44,fontSize:13}} />
                 <button
                   type="button"
                   onClick={() => removeDrillRow(i)}
-                  className="text-gray-300 hover:text-red-400 transition-colors text-lg leading-none"
+                  className="text-gray-300 hover:text-red-400 transition-colors text-xl leading-none"
                   title="Remove row"
                 >
                   ×
@@ -526,8 +579,8 @@ export default function Home() {
               <div className="space-y-4">
                 <Field label="Reviewed / Approved By" value={form.reviewedBy} onChange={set("reviewedBy")} />
                 <div className="grid grid-cols-2 gap-6">
-                  <Field label="Review Date" value={form.reviewDate} onChange={set("reviewDate")} type="date" />
-                  <Field label="Next Review Due" value={form.nextReviewDue} onChange={set("nextReviewDue")} type="date" />
+                  <DateField label="Review Date" value={form.reviewDate} onChange={set("reviewDate")} />
+                  <DateField label="Next Review Due" value={form.nextReviewDue} onChange={set("nextReviewDue")} />
                 </div>
                 <TextArea label="Notes (Minute Reference, Decisions Made, Outstanding Actions)" value={form.govNotes} onChange={set("govNotes")} />
               </div>
@@ -537,7 +590,7 @@ export default function Home() {
               <h3 className="font-bold text-[#162040] text-sm mb-4">Sign-off Record</h3>
               <div className="grid grid-cols-2 gap-6">
                 <Field label="Signed (Chair of Governors / Trust Representative)" value={form.signedBy} onChange={set("signedBy")} />
-                <Field label="Date Signed" value={form.dateSigned} onChange={set("dateSigned")} type="date" />
+                <DateField label="Date Signed" value={form.dateSigned} onChange={set("dateSigned")} />
               </div>
             </div>
           </div>
