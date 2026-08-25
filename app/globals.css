@@ -204,6 +204,13 @@ body {
     position: static !important;
     margin: 0;
     padding: 0;
+    /* Force all background colours and images to render */
+    print-color-adjust: exact;
+    -webkit-print-color-adjust: exact;
+  }
+  #pdf-layout * {
+    print-color-adjust: exact;
+    -webkit-print-color-adjust: exact;
   }
   body {
     background: white !important;
@@ -211,7 +218,7 @@ body {
     padding: 0 !important;
   }
   @page {
-    size: A4 portrait;
+    size: 794px 1123px;
     margin: 0;
   }
 }
