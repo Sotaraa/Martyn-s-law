@@ -378,24 +378,416 @@ export default function Home() {
   const handleDownload = async () => {
     setGenerating(true);
     try {
-      const el = printRef.current;
-      if (!el) return;
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      const { default: html2canvas } = await import("html2canvas" as any);
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
       const { default: jsPDF } = await import("jspdf" as any);
-      const pdf = new jsPDF({ unit: "px", format: [794, 1123], orientation: "portrait" });
-      const pages = Array.from(el.children) as HTMLElement[];
-      for (let i = 0; i < pages.length; i++) {
-        if (i > 0) pdf.addPage([794, 1123]);
-        // eslint-disable-next-line @typescript-eslint/no-explicit-any
-        const canvas = await (html2canvas as any)(pages[i], {
-          scale: 2, useCORS: true, width: 794, height: 1123, logging: false,
-        });
-        pdf.addImage(canvas.toDataURL("image/jpeg", 0.95), "JPEG", 0, 0, 794, 1123);
+      const pdf = new jsPDF({ unit: "mm", format: "a4" });
+
+      // ── Constants ─────────────────────────────────────────
+      const PW = 210, PH = 297, ML = 14, MR = 14;
+      const CW = PW - ML - MR; // 182mm content width
+      const MAX_Y = PH - 14;   // bottom of content area
+
+      // ── Color helpers ─────────────────────────────────────
+      const fc = (r: number, g: number, b: number) => pdf.setFillColor(r, g, b);
+      const dc = (r: number, g: number, b: number) => pdf.setDrawColor(r, g, b);
+      const tc = (r: number, g: number, b: number) => pdf.setTextColor(r, g, b);
+
+      // Palette
+      const NAVY        = [22,  32,  64 ];
+      const ORANGE      = [224, 90,  43 ];
+      const BLUE_BADGE  = [74,  127, 181];
+      const GRAY_LBL    = [107, 114, 128];
+      const GRAY_BDR    = [209, 213, 219];
+      const DARK        = [17,  24,  39 ];
+      const WHITE       = [255, 255, 255];
+      const LT_BLUE     = [147, 197, 253];
+      const ACCENT      = [59,  130, 246];
+      const FT_GRAY     = [156, 163, 175];
+      const PLACEHOLDER = [196, 201, 212];
+      const DIVIDER     = [243, 244, 246];
+      const LIGHT_BG    = [249, 250, 251];
+
+      let pageCount = 0;
+
+      // ── Page chrome ────────────────────────────────────────
+      function newPage() {
+        if (pageCount > 0) pdf.addPage();
+        pageCount++;
       }
+
+      function pageHeader(title: string, subtitle: string) {
+        fc(...NAVY as [number,number,number]); pdf.rect(0, 0, PW, 26, "F");
+        fc(...ACCENT as [number,number,number]); pdf.rect(0, 26, PW, 1, "F");
+
+        pdf.setFont("helvetica", "bold"); pdf.setFontSize(15);
+        tc(...WHITE as [number,number,number]);
+        pdf.text(title, ML, 11);
+
+        pdf.setFont("helvetica", "normal"); pdf.setFontSize(7.5);
+        tc(...LT_BLUE as [number,number,number]);
+        pdf.text(subtitle, ML, 17);
+
+        pdf.setFont("helvetica", "bold"); pdf.setFontSize(8);
+        tc(...LT_BLUE as [number,number,number]);
+        pdf.text("SOTARA", PW - MR, 10, { align: "right" });
+
+        pdf.setFont("helvetica", "normal"); pdf.setFontSize(7);
+        pdf.text(`PAGE ${pageCount}`, PW - MR, 16, { align: "right" });
+      }
+
+      function pageFooter() {
+        dc(...GRAY_BDR as [number,number,number]); pdf.setLineWidth(0.2);
+        pdf.line(ML, PH - 9, PW - MR, PH - 9);
+        pdf.setFont("helvetica", "normal"); pdf.setFontSize(6.5);
+        tc(...FT_GRAY as [number,number,number]);
+        pdf.text("Martyn's Law Standard Tier Compliance Checklist · Powered by Sotara", ML, PH - 5.5);
+        pdf.text(`Page ${pageCount}`, PW - MR, PH - 5.5, { align: "right" });
+      }
+
+      // ── Drawing helpers ────────────────────────────────────
+
+      function drawField(x: number, y: number, w: number, label: string, value: string): number {
+        const BH = 8;
+        pdf.setFont("helvetica", "bold"); pdf.setFontSize(6.5);
+        tc(...GRAY_LBL as [number,number,number]);
+        pdf.text(label.toUpperCase(), x, y);
+        fc(...WHITE as [number,number,number]); dc(...GRAY_BDR as [number,number,number]); pdf.setLineWidth(0.4);
+        pdf.roundedRect(x, y + 1.5, w, BH, 1.2, 1.2, "FD");
+        if (value) {
+          pdf.setFont("helvetica", "normal"); pdf.setFontSize(9);
+          tc(...DARK as [number,number,number]);
+          pdf.text(pdf.splitTextToSize(value, w - 5)[0], x + 2.5, y + 7.5);
+        }
+        return y + BH + 4.5;
+      }
+
+      function drawDateField(x: number, y: number, w: number, label: string, value: string): number {
+        const BH = 8;
+        pdf.setFont("helvetica", "bold"); pdf.setFontSize(6.5);
+        tc(...GRAY_LBL as [number,number,number]);
+        pdf.text(label.toUpperCase(), x, y);
+        fc(...WHITE as [number,number,number]); dc(...GRAY_BDR as [number,number,number]); pdf.setLineWidth(0.4);
+        pdf.roundedRect(x, y + 1.5, w, BH, 1.2, 1.2, "FD");
+
+        // Calendar icon
+        const ix = x + 2.5, iy = y + 3;
+        dc(...GRAY_LBL as [number,number,number]); pdf.setLineWidth(0.3);
+        pdf.roundedRect(ix, iy, 4, 3.8, 0.4, 0.4, "S");
+        pdf.line(ix + 1, iy - 0.4, ix + 1, iy + 0.4);
+        pdf.line(ix + 3, iy - 0.4, ix + 3, iy + 0.4);
+        pdf.line(ix, iy + 1.3, ix + 4, iy + 1.3);
+
+        pdf.setFont("helvetica", "normal"); pdf.setFontSize(9);
+        if (value) {
+          tc(...DARK as [number,number,number]);
+          pdf.text(value, x + 9, y + 7.5);
+        } else {
+          tc(...PLACEHOLDER as [number,number,number]);
+          pdf.text("dd/mm/yyyy", x + 9, y + 7.5);
+        }
+        return y + BH + 4.5;
+      }
+
+      function drawTextArea(x: number, y: number, w: number, h: number, label: string, value: string): number {
+        if (label) {
+          pdf.setFont("helvetica", "bold"); pdf.setFontSize(6.5);
+          tc(...GRAY_LBL as [number,number,number]);
+          pdf.text(label.toUpperCase(), x, y);
+          y += 1.5;
+        }
+        fc(...WHITE as [number,number,number]); dc(...GRAY_BDR as [number,number,number]); pdf.setLineWidth(0.4);
+        pdf.roundedRect(x, y, w, h, 1.2, 1.2, "FD");
+        if (value) {
+          pdf.setFont("helvetica", "normal"); pdf.setFontSize(9);
+          tc(...DARK as [number,number,number]);
+          pdf.text(pdf.splitTextToSize(value, w - 5), x + 2.5, y + 5);
+        }
+        return y + h + 3;
+      }
+
+      function drawSubHead(x: number, y: number, label: string): number {
+        pdf.setFont("helvetica", "bold"); pdf.setFontSize(12);
+        tc(...DARK as [number,number,number]);
+        pdf.text(label, x, y);
+        dc(...GRAY_BDR as [number,number,number]); pdf.setLineWidth(0.3);
+        pdf.line(x, y + 1, x + CW, y + 1);
+        return y + 7;
+      }
+
+      function drawSectionHead(x: number, y: number, label: string): number {
+        pdf.setFont("helvetica", "bold"); pdf.setFontSize(8);
+        tc(...DARK as [number,number,number]);
+        pdf.text(label.toUpperCase(), x, y);
+        dc(...DARK as [number,number,number]); pdf.setLineWidth(0.5);
+        pdf.line(x, y + 1, x + CW, y + 1);
+        return y + 6;
+      }
+
+      function drawBadge(x: number, y: number, level: string): number {
+        const col = level === "MUST" ? ORANGE : level === "SHOULD" ? BLUE_BADGE : [156, 163, 175];
+        const bw = level === "MUST" ? 15 : level === "SHOULD" ? 19 : 16;
+        fc(...col as [number,number,number]);
+        pdf.roundedRect(x, y - 4, bw, 5.5, 2.3, 2.3, "F");
+        pdf.setFont("helvetica", "bold"); pdf.setFontSize(8);
+        tc(...WHITE as [number,number,number]);
+        pdf.text(level, x + bw / 2, y - 0.3, { align: "center" });
+        return x + bw + 3;
+      }
+
+      function drawCheckbox(x: number, y: number, checked: boolean) {
+        const SZ = 4.5;
+        pdf.setLineWidth(0.4);
+        if (checked) {
+          fc(...NAVY as [number,number,number]); dc(...NAVY as [number,number,number]);
+          pdf.roundedRect(x, y, SZ, SZ, 0.6, 0.6, "FD");
+          dc(...WHITE as [number,number,number]); pdf.setLineWidth(0.6);
+          pdf.line(x + 0.8, y + 2.2, x + 1.9, y + 3.4);
+          pdf.line(x + 1.9, y + 3.4, x + 3.7, y + 1.1);
+        } else {
+          fc(...WHITE as [number,number,number]); dc(...GRAY_BDR as [number,number,number]);
+          pdf.roundedRect(x, y, SZ, SZ, 0.6, 0.6, "FD");
+        }
+      }
+
+      // Draw full task row; returns next Y
+      function drawTask(x: number, y: number, task: typeof TASKS[number], val: { checked: boolean; completedBy: string; date: string }): number {
+        dc(...DIVIDER as [number,number,number]); pdf.setLineWidth(0.2);
+        pdf.line(x, y, x + CW, y);
+        y += 3;
+
+        drawCheckbox(x, y, val.checked);
+
+        pdf.setFont("helvetica", "bold"); pdf.setFontSize(10);
+        tc(...DARK as [number,number,number]);
+        const labelLines = pdf.splitTextToSize(task.label, CW - 10);
+        pdf.text(labelLines, x + 7, y + 3.5);
+        y += Math.max(labelLines.length * 4, 4) + 2;
+
+        const xAfter = drawBadge(x + 7, y, task.level);
+        pdf.setFont("helvetica", "normal"); pdf.setFontSize(7.5);
+        tc(...GRAY_LBL as [number,number,number]);
+        pdf.text(task.category, xAfter, y);
+        y += 5;
+
+        const hw = (CW - 7 - 4) / 2;
+        drawField(x + 7, y, hw, "Completed By", val.completedBy);
+        drawDateField(x + 7 + hw + 4, y, hw, "Date", val.date);
+        y += 13.5;
+
+        return y;
+      }
+
+      // ── PAGE 1 — Cover ─────────────────────────────────────
+      newPage();
+      pageHeader("Martyn's Law Compliance Checklist", "STANDARD TIER · TERRORISM (PROTECTION OF PREMISES) ACT 2025");
+      pageFooter();
+
+      let y = 33;
+
+      // FREE TOOL badge
+      fc(...ORANGE as [number,number,number]);
+      pdf.roundedRect(ML, y, 35, 5.5, 1, 1, "F");
+      pdf.setFont("helvetica", "bold"); pdf.setFontSize(7);
+      tc(...WHITE as [number,number,number]);
+      pdf.text("FREE TOOL FROM SOTARA", ML + 17.5, y + 3.8, { align: "center" });
+      y += 10;
+
+      pdf.setFont("helvetica", "normal"); pdf.setFontSize(9);
+      tc(...DARK as [number,number,number]);
+      const introText = "A fillable record of your school or trust's Standard Tier obligations under Martyn's Law: Responsible Person & SIA registration, the compliance checklist, drill log, and governance sign-off. Print, save, or fill digitally.";
+      const introLines = pdf.splitTextToSize(introText, CW);
+      pdf.text(introLines, ML, y);
+      y += introLines.length * 4.2 + 10;
+
+      y = drawSubHead(ML, y, "School / Trust Details");
+      y = drawField(ML, y, CW, "School / Trust Name", form.schoolName);
+      y = drawField(ML, y, CW, "Site / Premises Name", form.siteName);
+      const hw1 = (CW - 5) / 2;
+      drawField(ML, y, hw1, "Approx. Number of Pupils / Staff on Site at Peak", form.peakNumber);
+      drawField(ML + hw1 + 5, y, hw1, "Number of Sites in This Trust (if applicable)", form.numberOfSites);
+      y += 13.5 + 4;
+
+      y = drawSubHead(ML, y, "Document Owner");
+      y = drawField(ML, y, CW, "Completed By (Name & Role)", form.completedBy);
+      drawDateField(ML, y, hw1, "Date Completed", form.dateCompleted);
+      y += 13.5 + 8;
+
+      // Info box
+      fc(...LIGHT_BG as [number,number,number]); dc(...GRAY_BDR as [number,number,number]); pdf.setLineWidth(0.3);
+      pdf.roundedRect(ML, y, CW, 24, 1.5, 1.5, "FD");
+      pdf.setFont("helvetica", "bold"); pdf.setFontSize(9.5);
+      tc(...DARK as [number,number,number]);
+      pdf.text("What this covers", ML + 3, y + 7);
+      pdf.setFont("helvetica", "normal"); pdf.setFontSize(8.5);
+      tc(...GRAY_LBL as [number,number,number]);
+      const whatLines = pdf.splitTextToSize(
+        "Early years, primary, secondary and further education settings sit in the Standard Tier regardless of pupil numbers. This checklist reflects common Standard Tier guidance. Verify wording against the official Section 27 statutory guidance and take your own legal advice before relying on it as a formal compliance record.",
+        CW - 6
+      );
+      pdf.text(whatLines, ML + 3, y + 13);
+
+      // ── PAGE 2 — Responsible Person & SIA ─────────────────
+      newPage();
+      pageHeader("Responsible Person & SIA", "STANDARD TIER · SECTION 1 OF 4");
+      pageFooter();
+      y = 34;
+
+      y = drawSubHead(ML, y, "Responsible Person");
+      pdf.setFont("helvetica", "normal"); pdf.setFontSize(9);
+      tc(...GRAY_LBL as [number,number,number]);
+      pdf.text("Standard Tier requires a named individual with formal oversight of preparedness.", ML, y);
+      y += 7;
+
+      const hw2 = (CW - 5) / 2;
+      drawField(ML, y, hw2, "Name", form.rpName);
+      drawField(ML + hw2 + 5, y, hw2, "Role", form.rpRole);
+      y += 13.5;
+      drawField(ML, y, hw2, "Email", form.rpEmail);
+      drawDateField(ML + hw2 + 5, y, hw2, "Appointed On (Date)", form.rpAppointedOn);
+      y += 13.5 + 8;
+
+      y = drawSubHead(ML, y, "SIA Registration");
+      pdf.setFont("helvetica", "normal"); pdf.setFontSize(9);
+      tc(...GRAY_LBL as [number,number,number]);
+      pdf.text("Confirms the school understands its responsibilities and has proportionate measures in place.", ML, y);
+      y += 8;
+
+      drawCheckbox(ML, y, form.siaRegistered);
+      pdf.setFont("helvetica", "normal"); pdf.setFontSize(10);
+      tc(...DARK as [number,number,number]);
+      pdf.text("Registered with the SIA", ML + 7, y + 3.5);
+      y += 11;
+
+      drawDateField(ML, y, hw2, "Registration Date", form.siaRegistrationDate);
+      y += 13.5 + 8;
+
+      y = drawSubHead(ML, y, "Notes");
+      drawTextArea(ML, y, CW, 32, "", form.siaaNotes);
+
+      // ── PAGES 3-N — Compliance Tasks (dynamic pagination) ──
+      let taskPage = 0;
+
+      function ensureTaskSpace(needed: number) {
+        if (taskPage === 0 || y + needed > MAX_Y) {
+          newPage();
+          taskPage++;
+          pageHeader(
+            taskPage === 1 ? "Compliance Tasks" : "Compliance Tasks (cont.)",
+            "STANDARD TIER · SECTION 2 OF 4"
+          );
+          pageFooter();
+          y = 34;
+          if (taskPage === 1) {
+            pdf.setFont("helvetica", "normal"); pdf.setFontSize(8.5);
+            tc(...GRAY_LBL as [number,number,number]);
+            pdf.text('"Must" = express legal requirement in the guidance.  "Should" = expected good practice.  "Could" = optional.', ML, y);
+            y += 8;
+          }
+        }
+      }
+
+      let lastCategory = "";
+      for (const task of TASKS) {
+        if (task.category !== lastCategory) {
+          ensureTaskSpace(22);
+          y = drawSectionHead(ML, y, task.category);
+          y += 1;
+          lastCategory = task.category;
+        }
+        ensureTaskSpace(34);
+        const val = form.tasks[task.id] ?? { checked: false, completedBy: "", date: "" };
+        y = drawTask(ML, y, task, val);
+      }
+
+      // ── PAGE: Drill Log ────────────────────────────────────
+      newPage();
+      pageHeader("Drill Log", "STANDARD TIER · SECTION 3 OF 4");
+      pageFooter();
+      y = 34;
+
+      pdf.setFont("helvetica", "normal"); pdf.setFontSize(9);
+      tc(...DARK as [number,number,number]);
+      pdf.text("Record termly practice of evacuation, invacuation, lockdown and communication procedures.", ML, y);
+      y += 11;
+
+      // Table columns: DATE 25mm, TYPE 28mm, LOGGED BY 44mm, NOTES rest
+      const COL_X = [ML, ML + 25, ML + 53, ML + 97];
+      const COL_W = [23, 26, 42, CW - 83];
+      const COL_H = ["DATE", "TYPE", "LOGGED BY", "NOTES / OUTCOME"];
+
+      pdf.setFont("helvetica", "bold"); pdf.setFontSize(7);
+      tc(...GRAY_LBL as [number,number,number]);
+      COL_H.forEach((h, i) => pdf.text(h, COL_X[i], y));
+      y += 3;
+
+      for (const drill of form.drills) {
+        COL_W.forEach((w, i) => {
+          fc(...WHITE as [number,number,number]); dc(...GRAY_BDR as [number,number,number]); pdf.setLineWidth(0.3);
+          pdf.roundedRect(COL_X[i], y, w, 8, 1, 1, "FD");
+        });
+        pdf.setFont("helvetica", "normal"); pdf.setFontSize(9);
+        tc(...DARK as [number,number,number]);
+        if (drill.date) pdf.text(drill.date, COL_X[0] + 2, y + 5.5);
+        if (drill.type) pdf.text(drill.type, COL_X[1] + 2, y + 5.5);
+        if (drill.loggedBy) pdf.text(drill.loggedBy, COL_X[2] + 2, y + 5.5);
+        if (drill.notes) {
+          const nl = pdf.splitTextToSize(drill.notes, COL_W[3] - 3);
+          pdf.text(nl[0], COL_X[3] + 2, y + 5.5);
+        }
+        y += 10;
+      }
+
+      y += 5;
+      pdf.setFont("helvetica", "normal"); pdf.setFontSize(8);
+      tc(...GRAY_LBL as [number,number,number]);
+      pdf.text("Type options: Evacuation / Invacuation / Lockdown / Communication", ML, y);
+
+      // ── PAGE: Governance & Sign-off ────────────────────────
+      newPage();
+      pageHeader("Governance & Sign-off", "STANDARD TIER · SECTION 4 OF 4");
+      pageFooter();
+      y = 34;
+
+      pdf.setFont("helvetica", "normal"); pdf.setFontSize(9);
+      tc(...DARK as [number,number,number]);
+      const govLines = pdf.splitTextToSize(
+        "The governing body or trust board is legally responsible for Standard Tier compliance. Record formal review here once it has been minuted, rather than leaving it informal.",
+        CW
+      );
+      pdf.text(govLines, ML, y);
+      y += govLines.length * 4.2 + 8;
+
+      y = drawSubHead(ML, y, "Latest Sign-off");
+      y = drawField(ML, y, CW, "Reviewed / Approved By", form.reviewedBy);
+      const hw7 = (CW - 5) / 2;
+      drawDateField(ML, y, hw7, "Review Date", form.reviewDate);
+      drawDateField(ML + hw7 + 5, y, hw7, "Next Review Due", form.nextReviewDue);
+      y += 13.5;
+      y = drawTextArea(ML, y, CW, 26, "Notes (Minute Reference, Decisions Made, Outstanding Actions)", form.govNotes);
+      y += 6;
+
+      y = drawSubHead(ML, y, "Sign-off Record");
+      drawField(ML, y, hw7, "Signed (Chair of Governors / Trust Representative)", form.signedBy);
+      drawDateField(ML + hw7 + 5, y, hw7, "Date Signed", form.dateSigned);
+      y += 13.5 + 12;
+
+      // Sotara promo box
+      fc(...LIGHT_BG as [number,number,number]); dc(...GRAY_BDR as [number,number,number]); pdf.setLineWidth(0.3);
+      pdf.roundedRect(ML, y, CW, 22, 1.5, 1.5, "FD");
+      pdf.setFont("helvetica", "bold"); pdf.setFontSize(10);
+      tc(...DARK as [number,number,number]);
+      pdf.text("More than a checklist?", ML + 3, y + 7);
+      pdf.setFont("helvetica", "normal"); pdf.setFontSize(8.5);
+      tc(...GRAY_LBL as [number,number,number]);
+      pdf.text("Sotara builds operations software for UK schools: leave management, helpdesk, visitor sign-in and more.", ML + 3, y + 13);
+      pdf.setFont("helvetica", "bold"); pdf.setFontSize(8.5);
+      tc(...DARK as [number,number,number]);
+      pdf.text("Scan to explore → sotara.co.uk", ML + 3, y + 19);
+
+      // ── Save ───────────────────────────────────────────────
       const name = form.schoolName.replace(/\s+/g, "-") || "school";
       pdf.save(`martyns-law-checklist-${name}.pdf`);
+
     } finally {
       setGenerating(false);
     }
