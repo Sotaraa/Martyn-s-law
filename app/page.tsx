@@ -303,9 +303,26 @@ function PdfField({ label, value }: { label: string; value: string }) {
 function PdfBadge({ level }: { level: string }) {
   const bg = level === "MUST" ? "#e05a2b" : level === "SHOULD" ? "#4a7fb5" : "#9ca3af";
   return (
-    <span style={{ display: "inline-block", background: bg, color: "white", fontSize: "11px", fontWeight: "700", padding: "3px 10px", borderRadius: "99px", marginRight: "8px", letterSpacing: "0.05em", lineHeight: "1.5" }}>
+    <span style={{ display: "inline-block", background: bg, color: "white", fontSize: "13px", fontWeight: "700", padding: "5px 14px", borderRadius: "9999px", marginRight: "8px", letterSpacing: "0.05em", lineHeight: "1.3" }}>
       {level}
     </span>
+  );
+}
+
+function PdfDateField({ label, value }: { label: string; value: string }) {
+  return (
+    <div style={{ marginBottom: "10px" }}>
+      <div style={{ fontSize: "9px", fontWeight: "600", letterSpacing: "0.07em", color: "#6b7280", textTransform: "uppercase", marginBottom: "4px" }}>{label}</div>
+      <div style={{ position: "relative", border: "1.5px solid #d1d5db", borderRadius: "6px", background: "#ffffff", height: "32px", display: "flex", alignItems: "center", paddingLeft: "32px", paddingRight: "10px" }}>
+        <svg style={{ position: "absolute", left: "9px", width: "14px", height: "14px", flexShrink: 0, stroke: "#9ca3af", fill: "none", strokeWidth: 1.8, strokeLinecap: "round", strokeLinejoin: "round" } as React.CSSProperties} viewBox="0 0 24 24">
+          <rect x="3" y="4" width="18" height="18" rx="3"/>
+          <line x1="16" y1="2" x2="16" y2="6"/>
+          <line x1="8" y1="2" x2="8" y2="6"/>
+          <line x1="3" y1="10" x2="21" y2="10"/>
+        </svg>
+        <span style={{ fontSize: "12px", color: value ? "#111827" : "#c4c9d4" }}>{value || "dd/mm/yyyy"}</span>
+      </div>
+    </div>
   );
 }
 
@@ -326,7 +343,7 @@ function PdfTaskItem({ task, value }: { task: (typeof TASKS)[number]; value: { c
       </div>
       <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "12px", marginLeft: "24px" }}>
         <PdfField label="Completed By" value={value.completedBy} />
-        <PdfField label="Date" value={value.date} />
+        <PdfDateField label="Date" value={value.date} />
       </div>
     </div>
   );
@@ -651,7 +668,7 @@ export default function Home() {
               <h3 style={{ fontWeight: "bold", fontSize: "16px", color: "#111827", borderBottom: "1px solid #e5e7eb", paddingBottom: "6px", marginBottom: "16px", marginTop: "24px" }}>Document Owner</h3>
               <PdfField label="Completed By (Name & Role)" value={form.completedBy} />
               <div style={{ maxWidth: "260px" }}>
-                <PdfField label="Date Completed" value={form.dateCompleted} />
+                <PdfDateField label="Date Completed" value={form.dateCompleted} />
               </div>
 
               <div style={{ marginTop: "32px", border: "1px solid #e5e7eb", borderRadius: "6px", padding: "14px 16px", background: "#f9fafb" }}>
@@ -685,7 +702,7 @@ export default function Home() {
                 <PdfField label="Name" value={form.rpName} />
                 <PdfField label="Role" value={form.rpRole} />
                 <PdfField label="Email" value={form.rpEmail} />
-                <PdfField label="Appointed On (Date)" value={form.rpAppointedOn} />
+                <PdfDateField label="Appointed On (Date)" value={form.rpAppointedOn} />
               </div>
 
               <h3 style={{ fontWeight: "bold", fontSize: "15px", color: "#111827", borderBottom: "1px solid #e5e7eb", paddingBottom: "6px", marginBottom: "10px", marginTop: "24px" }}>SIA Registration</h3>
@@ -697,7 +714,7 @@ export default function Home() {
                 <span style={{ fontSize: "12px" }}>Registered with the SIA</span>
               </div>
               <div style={{ maxWidth: "260px" }}>
-                <PdfField label="Registration Date" value={form.siaRegistrationDate} />
+                <PdfDateField label="Registration Date" value={form.siaRegistrationDate} />
               </div>
 
               <h3 style={{ fontWeight: "bold", fontSize: "15px", color: "#111827", borderBottom: "1px solid #e5e7eb", paddingBottom: "6px", marginBottom: "10px", marginTop: "24px" }}>Notes</h3>
@@ -851,8 +868,8 @@ export default function Home() {
               <h3 style={{ fontWeight: "bold", fontSize: "15px", color: "#111827", borderBottom: "1px solid #e5e7eb", paddingBottom: "6px", marginBottom: "14px" }}>Latest Sign-off</h3>
               <PdfField label="Reviewed / Approved By" value={form.reviewedBy} />
               <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "16px" }}>
-                <PdfField label="Review Date" value={form.reviewDate} />
-                <PdfField label="Next Review Due" value={form.nextReviewDue} />
+                <PdfDateField label="Review Date" value={form.reviewDate} />
+                <PdfDateField label="Next Review Due" value={form.nextReviewDue} />
               </div>
               <div style={{ marginTop: "8px" }}>
                 <div style={{ fontSize: "9px", fontWeight: "600", letterSpacing: "0.08em", color: "#9ca3af", textTransform: "uppercase", marginBottom: "2px" }}>Notes (Minute Reference, Decisions Made, Outstanding Actions)</div>
@@ -862,7 +879,7 @@ export default function Home() {
               <h3 style={{ fontWeight: "bold", fontSize: "15px", color: "#111827", borderBottom: "1px solid #e5e7eb", paddingBottom: "6px", marginBottom: "14px", marginTop: "24px" }}>Sign-off Record</h3>
               <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "16px" }}>
                 <PdfField label="Signed (Chair of Governors / Trust Representative)" value={form.signedBy} />
-                <PdfField label="Date Signed" value={form.dateSigned} />
+                <PdfDateField label="Date Signed" value={form.dateSigned} />
               </div>
 
               {/* Sotara promo box */}
