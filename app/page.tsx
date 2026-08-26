@@ -561,7 +561,7 @@ export default function Home() {
         tc(...DARK as [number,number,number]);
         const labelLines = pdf.splitTextToSize(task.label, CW - 10);
         pdf.text(labelLines, x + 7, y + 3.5);
-        y += Math.max(labelLines.length * 4, 4) + 2;
+        y += Math.max(labelLines.length * 5, 5) + 5;
 
         const xAfter = drawBadge(x + 7, y, task.level);
         pdf.setFont("helvetica", "normal"); pdf.setFontSize(7.5);
@@ -689,12 +689,12 @@ export default function Home() {
       let lastCategory = "";
       for (const task of TASKS) {
         if (task.category !== lastCategory) {
-          ensureTaskSpace(22);
+          ensureTaskSpace(42);
           y = drawSectionHead(ML, y, task.category);
           y += 1;
           lastCategory = task.category;
         }
-        ensureTaskSpace(34);
+        ensureTaskSpace(38);
         const val = form.tasks[task.id] ?? { checked: false, completedBy: "", date: "" };
         y = drawTask(ML, y, task, val);
       }
@@ -782,7 +782,7 @@ export default function Home() {
       pdf.text("Sotara builds operations software for UK schools: leave management, helpdesk, visitor sign-in and more.", ML + 3, y + 13);
       pdf.setFont("helvetica", "bold"); pdf.setFontSize(8.5);
       tc(...DARK as [number,number,number]);
-      pdf.text("Scan to explore → sotara.co.uk", ML + 3, y + 19);
+      pdf.text("Scan to explore: sotara.co.uk", ML + 3, y + 19);
 
       // ── Save ───────────────────────────────────────────────
       const name = form.schoolName.replace(/\s+/g, "-") || "school";
