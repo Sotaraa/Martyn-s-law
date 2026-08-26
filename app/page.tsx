@@ -527,10 +527,10 @@ export default function Home() {
         const col = level === "MUST" ? ORANGE : level === "SHOULD" ? BLUE_BADGE : [156, 163, 175];
         const bw = level === "MUST" ? 15 : level === "SHOULD" ? 19 : 16;
         fc(...col as [number,number,number]);
-        pdf.roundedRect(x, y - 4, bw, 5.5, 2.3, 2.3, "F");
+        pdf.roundedRect(x, y, bw, 5.5, 2.3, 2.3, "F");
         pdf.setFont("helvetica", "bold"); pdf.setFontSize(8);
         tc(...WHITE as [number,number,number]);
-        pdf.text(level, x + bw / 2, y - 0.3, { align: "center" });
+        pdf.text(level, x + bw / 2, y + 3.8, { align: "center" });
         return x + bw + 3;
       }
 
@@ -566,8 +566,8 @@ export default function Home() {
         const xAfter = drawBadge(x + 7, y, task.level);
         pdf.setFont("helvetica", "normal"); pdf.setFontSize(7.5);
         tc(...GRAY_LBL as [number,number,number]);
-        pdf.text(task.category, xAfter, y);
-        y += 5;
+        pdf.text(task.category, xAfter, y + 3.8);
+        y += 8;
 
         const hw = (CW - 7 - 4) / 2;
         drawField(x + 7, y, hw, "Completed By", val.completedBy);
