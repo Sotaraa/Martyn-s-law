@@ -1006,7 +1006,7 @@ export default function Home() {
 
             <div className="border-t border-gray-100 pt-6">
               <h3 className="font-bold text-[#162040] text-sm mb-4">Sign-off Record</h3>
-              <div className="grid grid-cols-2 gap-6">
+              <div className="grid grid-cols-2 gap-6 items-end">
                 <Field label="Signed (Chair of Governors / Trust Representative)" value={form.signedBy} onChange={set("signedBy")} />
                 <DateField label="Date Signed" value={form.dateSigned} onChange={set("dateSigned")} />
               </div>
