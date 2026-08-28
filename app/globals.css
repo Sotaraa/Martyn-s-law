@@ -51,10 +51,13 @@ textarea.field-input {
 
 /* ── Date input with icon ── */
 .date-wrap {
-  position: relative;
   display: flex;
   flex-direction: column;
   gap: 5px;
+}
+
+.date-input-wrap {
+  position: relative;
 }
 
 .date-input {
@@ -83,7 +86,8 @@ textarea.field-input {
 .date-icon {
   position: absolute;
   left: 13px;
-  bottom: 12px;
+  top: 50%;
+  transform: translateY(-50%);
   width: 18px;
   height: 18px;
   color: #9ca3af;
